@@ -99,7 +99,7 @@ export function useWithdrawAction(onDone) {
 }
 
 export function useAppLogic() {
-  const { account, token, isSyncing, ready, requests, acceptedTokens = [] } = useAppState()
+  const { account, token, isSyncing, ready, requests, acceptedTokens = [], nftList } = useAppState()
   const [selectedRequest, selectRequest] = useSelectedRequest(requests)
   const panelState = useSidePanel()
 
@@ -119,5 +119,6 @@ export function useAppLogic() {
     token,
     actions,
     requests,
+    nftList
   }
 }

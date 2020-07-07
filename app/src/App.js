@@ -8,6 +8,7 @@ import { useAppLogic } from './hooks/app-hooks'
 import requestIcon from './assets/icono.svg'
 import { ETHER_TOKEN_FAKE_ADDRESS } from './lib/token-utils'
 import Requests from './screens/Requests'
+import NFT from './screens/NFT'
 import RequestDetail from './screens/RequestDetail'
 import MainButton from './components/MainButton'
 import { IdentityProvider } from './identity-manager'
@@ -22,6 +23,7 @@ const App = () => {
     requests,
     selectRequest,
     selectedRequest,
+    nftList,
   } = useAppLogic()
   const { appearance } = useGuiStyle()
   const [screenIndex, setScreenIndex] = useState(0)
@@ -50,15 +52,15 @@ const App = () => {
     actions.request(tokenAddress, depositAmount, requestedAmount, reference, intentParams)
   }
 
-  const handleSubmit = async requestId => {
+  const handleSubmit = async (requestId) => {
     actions.submit(requestId)
   }
 
-  const handleWithdraw = async requestId => {
+  const handleWithdraw = async (requestId) => {
     actions.withdraw(requestId)
   }
 
-  const handleTabChange = screenIndex => {
+  const handleTabChange = (screenIndex) => {
     setScreenIndex(screenIndex)
   }
 
@@ -66,13 +68,13 @@ const App = () => {
     <Main theme={appearance}>
       <SyncIndicator visible={isSyncing} />
       <Header
-        primary='Token Request'
+        primary="Token Request"
         secondary={
           !selectedRequest && (
             <MainButton
-              label='New Request'
+              label="New Request"
               onClick={panelState.requestOpen}
-              icon={<img src={requestIcon} height='30px' alt='' />}
+              icon={<img src={requestIcon} height="30px" alt="" />}
             />
           )
         }
@@ -89,22 +91,37 @@ const App = () => {
         ) : (
           <>
             <TabsWrapper>
-              <Tabs items={['Requests', 'My Requests']} selected={screenIndex} onChange={handleTabChange} />
+              <Tabs
+                items={['Requests', 'My Requests', 'NFT Gallery']}
+                selected={screenIndex}
+                onChange={handleTabChange}
+              />
             </TabsWrapper>
-            <Requests
-              requests={requests}
-              token={token}
-              onSubmit={handleSubmit}
-              onWithdraw={handleWithdraw}
-              ownRequests={screenIndex === 1}
-              onSelectRequest={selectRequest}
-            />
+            {screenIndex == 2 ? (
+              <NFT
+                nftList={nftList}
+                token={token}
+                onSubmit={handleSubmit}
+                onWithdraw={handleWithdraw}
+                ownRequests={screenIndex === 1}
+                onSelectRequest={selectRequest}
+              ></NFT>
+            ) : (
+              <Requests
+                requests={requests}
+                token={token}
+                onSubmit={handleSubmit}
+                onWithdraw={handleWithdraw}
+                ownRequests={screenIndex === 1}
+                onSelectRequest={selectRequest}
+              />
+            )}
           </>
         )}
       </>
 
       <SidePanel
-        title='New request'
+        title="New request"
         opened={panelState.visible}
         onClose={panelState.requestClose}
         onTransitionEnd={panelState.endTransition}

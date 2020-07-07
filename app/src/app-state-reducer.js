@@ -8,13 +8,17 @@ function appStateReducer(state) {
     return { ...state, ready }
   }
 
-  const { requests = [], acceptedTokens = [] } = state
+  const { requests = [], acceptedTokens = [], nftList = [] } = state
 
   return {
     ...state,
     acceptedTokens,
     ready,
     requests: requests.sort(({ date: dateLeft }, { date: dateRight }) =>
+      // Sort by date descending
+      compareDesc(dateLeft, dateRight)
+    ),
+    nftList: nftList.sort(({ date: dateLeft }, { date: dateRight }) =>
       // Sort by date descending
       compareDesc(dateLeft, dateRight)
     ),
