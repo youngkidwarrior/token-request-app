@@ -5,6 +5,7 @@ import "@aragon/os/contracts/common/EtherTokenConstant.sol";
 import "@aragon/os/contracts/common/SafeERC20.sol";
 import "@aragon/os/contracts/lib/token/ERC20.sol";
 import "@aragon/apps-token-manager/contracts/TokenManager.sol";
+import "./openzeppelin/ERC721Full.sol";
 import "./lib/UintArrayLib.sol";
 import "./lib/AddressArrayLib.sol";
 
@@ -13,12 +14,15 @@ import "./lib/AddressArrayLib.sol";
 * A user can then request tokens by calling createTokenRequest() to deposit funds and then calling finaliseTokenRequest()
 * which will be called via the forwarder if forwarding is successful, minting the user tokens.
 */
-contract TokenRequest is AragonApp {
 
+
+contract TokenRequest is AragonApp {
+    
     using SafeERC20 for ERC20;
+    // using ERC721Full for ERC721;
     using UintArrayLib for uint256[];
     using AddressArrayLib for address[];
-
+    
     bytes32 constant public SET_TOKEN_MANAGER_ROLE = keccak256("SET_TOKEN_MANAGER_ROLE");
     bytes32 constant public SET_VAULT_ROLE = keccak256("SET_VAULT_ROLE");
     bytes32 constant public FINALISE_TOKEN_REQUEST_ROLE = keccak256("FINALISE_TOKEN_REQUEST_ROLE");
@@ -35,6 +39,8 @@ contract TokenRequest is AragonApp {
     string private constant ERROR_ETH_TRANSFER_FAILED = "TOKEN_REQUEST_ETH_TRANSFER_FAILED";
     string private constant ERROR_TOKEN_TRANSFER_REVERTED = "TOKEN_REQUEST_TOKEN_TRANSFER_REVERTED";
     string private constant ERROR_NO_REQUEST = "TOKEN_REQUEST_NO_REQUEST";
+
+    string private constant ERROR_REQUESTED_MORE_THAN_ONE_NFT = "ERROR_REQUESTED_MORE_THAN_ONE_NFT";
 
     uint256 public constant MAX_ACCEPTED_DEPOSIT_TOKENS = 100;
 
@@ -159,6 +165,9 @@ contract TokenRequest is AragonApp {
 
         if (_depositToken == ETH) {
             require(msg.value == _depositAmount, ERROR_ETH_VALUE_MISMATCH);
+        } else if (ERC721(_depositToken).supportsInterface(0x80ac58cd)) {
+            require (_depositAmount == 1,  ERROR_REQUESTED_MORE_THAN_ONE_NFT);
+            // require(ERC721(_depositToken).safeTransferFrom(msg.sender, address(this), _depositAmount), ERROR_TOKEN_TRANSFER_REVERTED);
         } else {
             require(ERC20(_depositToken).safeTransferFrom(msg.sender, address(this), _depositAmount), ERROR_TOKEN_TRANSFER_REVERTED);
         }
@@ -192,6 +201,8 @@ contract TokenRequest is AragonApp {
             if (refundToken == ETH) {
                 (bool success, ) = refundToAddress.call.value(refundAmount)();
                 require(success, ERROR_ETH_TRANSFER_FAILED);
+            } else if (ERC721(refundToken).supportsInterface(0x80ac58cd)) {
+                // require(ERC721(refundToken).safeTransferFrom(address(this),refundToAddress, refundAmount),ERROR_TOKEN_TRANSFER_REVERTED);
             } else {
                 require(ERC20(refundToken).safeTransfer(refundToAddress, refundAmount), ERROR_TOKEN_TRANSFER_REVERTED);
             }
@@ -226,6 +237,8 @@ contract TokenRequest is AragonApp {
             if (depositToken == ETH) {
                 (bool success, ) = vault.call.value(depositAmount)();
                 require(success, ERROR_ETH_TRANSFER_FAILED);
+            } else if (ERC721(depositToken).supportsInterface(0x80ac58cd)) {
+                // require(ERC721(depositToken)._safeTransfer(vault,depositAmount),ERROR_TOKEN_TRANSFER_REVERTED);
             } else {
                 require(ERC20(depositToken).safeTransfer(vault, depositAmount), ERROR_TOKEN_TRANSFER_REVERTED);
             }
