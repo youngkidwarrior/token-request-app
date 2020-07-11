@@ -29,7 +29,7 @@ const App = () => {
   const [screenIndex, setScreenIndex] = useState(0)
   const handleBack = useCallback(() => selectRequest(-1), [selectRequest])
 
-  const handleRequest = async (tokenAddress, depositAmount, requestedAmount, reference) => {
+  const handleRequest = async (tokenAddress, depositAmount, requestedAmount, tokenId, reference) => {
     let intentParams
     if (tokenAddress === ETHER_TOKEN_FAKE_ADDRESS) {
       intentParams = { value: depositAmount }
@@ -49,7 +49,7 @@ const App = () => {
       }
     }
     // Don't care about response1`
-    actions.request(tokenAddress, depositAmount, requestedAmount, reference, intentParams)
+    actions.request(tokenAddress, depositAmount, requestedAmount, tokenId, reference, intentParams)
   }
 
   const handleSubmit = async (requestId) => {
