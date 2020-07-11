@@ -51,9 +51,9 @@ export function useRequestAction(onDone) {
   const { api } = useAragonApi()
 
   return useCallback(
-    (depositTokenAddress, depositAmount, requestAmount, reference, intentParams) => {
+    (depositTokenAddress, depositAmount, requestAmount, reference, tokenId, intentParams) => {
       try {
-        api.createTokenRequest(depositTokenAddress, depositAmount, requestAmount, reference, intentParams).toPromise()
+        api.createTokenRequest(depositTokenAddress, depositAmount, requestAmount, reference, tokenId, intentParams).toPromise()
 
         onDone()
       } catch (error) {
