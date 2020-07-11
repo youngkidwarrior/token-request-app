@@ -52,7 +52,7 @@ const initialState = {
 }
 
 const NewRequest = React.memo(({ panelOpened, acceptedTokens, onRequest, connectedAccount }) => {
-  const { token } = useAppState()
+  const { token, nftList } = useAppState()
   const network = useNetwork()
   const api = useApi()
   const isMainnet = network.type === 'main'
@@ -64,6 +64,7 @@ const NewRequest = React.memo(({ panelOpened, acceptedTokens, onRequest, connect
   const [depositErrorMessage, setDepositErrorMessage] = useState(initialState.depositErrorMessage)
   const [submitButtonDisabled, setSubmitButtonDisabled] = useState(initialState.submitButtonDisabled)
   const [isTokenSelected, setIsTokenSelected] = useState(initialState.isTokenSelected)
+  const [isNFTSelected, setIsNFTSelected] = useState(initialState.isNFTSelected)
   const [orgToken, setOrgToken] = useState(initialState.orgToken)
 
   useEffect(() => {
@@ -88,10 +89,13 @@ const NewRequest = React.memo(({ panelOpened, acceptedTokens, onRequest, connect
       getSelectedTokenData()
       const ethSelected =
         isAddress(selectedToken.value) && addressesEqual(selectedToken.value, ETHER_TOKEN_FAKE_ADDRESS)
-      const tokenSelected = selectedToken.value && !ethSelected
+      const nftSelected =
+        isAddress(selectedToken.value) && nftList.contains(selectedToken.value)
+      setIsNFTSelected(nftSelected)
+      const tokenSelected = selectedToken.value && !ethSelected && !nftSelected
       setIsTokenSelected(tokenSelected)
     }
-  }, [selectedToken.index])
+  }, [selectedToken.index, nftList])
 
   useEffect(() => {
     if (!panelOpened) {
@@ -148,10 +152,12 @@ const NewRequest = React.memo(({ panelOpened, acceptedTokens, onRequest, connect
     e => {
       e.preventDefault()
       const depositAmount = toDecimals(depositedAmount.value, selectedToken.data.decimals)
+      // hard coded need to get tokenId from smart contract or somewhere
+      const tokenId = nftIsSelected ? 0 : null;
       const requested = toDecimals(requestedAmount, Number(token.decimals))
-      onRequest(selectedToken.value, depositAmount, requested, reference)
+      onRequest(selectedToken.value, depositAmount, requested, tokenId, reference)
     },
-    [onRequest, token, selectedToken, depositedAmount, requestedAmount, reference]
+    [onRequest, token, selectedToken, depositedAmount, requestedAmount, tokenId, reference]
   )
 
   const handleRequestedAmountUpdate = useCallback(e => {
@@ -281,6 +287,7 @@ const NewRequest = React.memo(({ panelOpened, acceptedTokens, onRequest, connect
             value={requestedAmount}
             onChange={handleRequestedAmountUpdate}
             min={0}
+            max={isNFTSelected ? 1 : null}
             step='any'
             required
             wide
