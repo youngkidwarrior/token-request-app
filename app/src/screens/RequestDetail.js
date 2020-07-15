@@ -27,7 +27,7 @@ import { formatTokenAmountSymbol } from '../lib/token-utils'
 import { formatTokenAmount } from '../lib/math-utils'
 import { format } from 'date-fns'
 
-const RequestDetail = ({ request, token, onBack, onSubmit, onWithdraw }) => {
+const RequestDetail = ({ request, tokens, onBack, onSubmit, onWithdraw }) => {
   const { layoutName } = useLayout()
   const theme = useTheme()
   const connectedAccount = useConnectedAccount()
@@ -35,6 +35,7 @@ const RequestDetail = ({ request, token, onBack, onSubmit, onWithdraw }) => {
   const {
     requestId,
     requesterAddress,
+    requestToken,
     depositAmount,
     depositSymbol,
     requestAmount,
@@ -44,6 +45,7 @@ const RequestDetail = ({ request, token, onBack, onSubmit, onWithdraw }) => {
     date,
     status,
   } = request
+  const token = tokens.find((orgToken) => orgToken.address == requestToken)
   const depositFormated = formatTokenAmount(depositAmount, false, depositDecimals, token.decimals)
   const requestFormated = formatTokenAmount(requestAmount, false, token.decimals, token.decimals)
   const requestRounded = formatTokenAmountSymbol(token.symbol, requestAmount, token.decimals)
