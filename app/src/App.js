@@ -18,7 +18,7 @@ const App = () => {
     panelState,
     isSyncing,
     acceptedTokens,
-    token,
+    orgTokens,
     actions,
     requests,
     selectRequest,
@@ -29,7 +29,7 @@ const App = () => {
   const [screenIndex, setScreenIndex] = useState(0)
   const handleBack = useCallback(() => selectRequest(-1), [selectRequest])
 
-  const handleRequest = async (tokenAddress, depositAmount, requestedAmount, tokenId, reference) => {
+  const handleRequest = async (tokenAddress, depositAmount, requestTokenAddress, requestedAmount, tokenId, reference) => {
     let intentParams
     if (tokenAddress === ETHER_TOKEN_FAKE_ADDRESS) {
       intentParams = { value: depositAmount }
@@ -49,7 +49,7 @@ const App = () => {
       }
     }
     // Don't care about response1`
-    actions.request(tokenAddress, depositAmount, requestedAmount, tokenId, reference, intentParams)
+    actions.request(tokenAddress, depositAmount, requestTokenAddress, requestedAmount, tokenId, reference, intentParams)
   }
 
   const handleSubmit = async (requestId) => {
@@ -83,7 +83,7 @@ const App = () => {
         {selectedRequest ? (
           <RequestDetail
             request={selectedRequest}
-            token={token}
+            tokens={orgTokens}
             onBack={handleBack}
             onSubmit={handleSubmit}
             onWithdraw={handleWithdraw}
@@ -100,7 +100,7 @@ const App = () => {
             {screenIndex == 2 ? (
               <NFT
                 nftList={nftList}
-                token={token}
+                tokens={orgTokens}
                 onSubmit={handleSubmit}
                 onWithdraw={handleWithdraw}
                 ownRequests={screenIndex === 1}
@@ -109,7 +109,7 @@ const App = () => {
             ) : (
               <Requests
                 requests={requests}
-                token={token}
+                tokens={orgTokens}
                 onSubmit={handleSubmit}
                 onWithdraw={handleWithdraw}
                 ownRequests={screenIndex === 1}
