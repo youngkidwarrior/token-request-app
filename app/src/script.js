@@ -21,27 +21,30 @@ const ETHER_DATA = {
 }
 
 app
-  .call('tokenManager')
-  .subscribe(initialize, err =>
+  .call('getTokenManagers')
+  .subscribe(initialize, (err) =>
     console.error(`Could not start background script execution due to the contract not loading token: ${err}`)
   )
 
-async function initialize(tokenManagerAddress) {
+async function initialize(tokenManagerAddresses) {
   let tokens = []
+  let tmContracts = []
   const network = await app
     .network()
     .pipe(first())
     .toPromise()
-  const tmContract = app.external(tokenManagerAddress, tmAbi)
+  for (let tokenManager of tokenManagerAddresses) {
+    tmContracts.push(app.external(tokenManager, tmAbi))
+  }
   tokens = await app.call('getAcceptedDepositTokens').toPromise()
 
   const settings = {
     network,
   }
-  return createStore(tmContract, tokens, settings)
+  return createStore(tmContracts, tokens, settings)
 }
 
-async function createStore(tokenManagerContract, tokens, settings) {
+async function createStore(tokenManagerContracts, tokens, settings) {
   return app.store(
     (state, { event, returnValues, blockNumber }) => {
       let nextState = {
@@ -66,7 +69,7 @@ async function createStore(tokenManagerContract, tokens, settings) {
       }
     },
     {
-      init: initializeState(tokenManagerContract, tokens, settings),
+      init: initializeState(tokenManagerContracts, tokens, settings),
     }
   )
 }
@@ -77,23 +80,26 @@ async function createStore(tokenManagerContract, tokens, settings) {
  *                     *
  ***********************/
 
-function initializeState(tokenManagerContract, tokens, settings) {
-  return async cachedState => {
+function initializeState(tokenManagerContracts, tokens, settings) {
+  return async (cachedState) => {
     try {
-      const minimeAddress = await tokenManagerContract.token().toPromise()
-      const token = await getTokenData(minimeAddress, settings)
+      const orgTokens = []
+      for (let tokenManagerContract of tokenManagerContracts) {
+        const minimeAddress = await tokenManagerContract.token().toPromise()
+        const token = await getTokenData(minimeAddress, settings)
+        token && app.indentify(`token-request ${token.symbol}`)
+        orgTokens.push(token)
+      }
       const acceptedTokens = await getAcceptedTokens(tokens, settings)
-
       tokens.includes(ETHER_TOKEN_FAKE_ADDRESS) &&
         acceptedTokens.unshift({
           ...ETHER_DATA,
           address: ETHER_TOKEN_FAKE_ADDRESS,
         })
-      token && app.indentify(`token-request ${token.symbol}`)
       return {
         ...cachedState,
         isSyncing: true,
-        token,
+        orgTokens,
         acceptedTokens,
       }
     } catch (error) {
