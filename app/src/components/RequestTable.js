@@ -38,20 +38,20 @@ const RequestTable = React.memo(({ requests, token, onSubmit, onWithdraw, ownReq
   !ownRequests && fields.splice(1, 0, 'Requester')
 
   const getEntries = useMemo(() => {
-    return requests.map(r => [
-      r.requestId,
-      r.date,
-      r.requesterAddress,
-      r.depositAmount,
-      r.depositSymbol,
-      r.depositToken,
-      r.depositName,
-      r.depositDecimals,
-      r.requestAmount,
-      r.status,
-      token.symbol,
-      token.decimals,
-    ])
+    return requests.map((r) => [
+        r.requestId,
+        r.date,
+        r.requesterAddress,
+        r.depositAmount,
+        r.depositSymbol,
+        r.depositToken,
+        r.depositName,
+        r.depositDecimals,
+        r.requestAmount,
+        r.status,
+        r.requestSymbol,
+        r.requestDecimals,
+      ])
   }, [requests, compareDesc, ownRequests])
 
   const getRow = (
