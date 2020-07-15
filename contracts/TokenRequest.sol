@@ -67,9 +67,9 @@ contract TokenRequest is AragonApp {
     event SetVault(address vault);
     event TokenAdded(address indexed token);
     event TokenRemoved(address indexed token);
-    event TokenRequestCreated(uint256 requestId, address requesterAddress, address depositToken, uint256 depositAmount, uint256 requestAmount, uint256 tokenId, string reference);
+    event TokenRequestCreated(uint256 requestId, address requesterAddress, address depositToken, uint256 depositAmount, address requestToken, uint256 requestAmount, uint256 tokenId, string reference);
     event TokenRequestRefunded(uint256 requestId, address refundToAddress, address refundToken, uint256 refundAmount);
-    event TokenRequestFinalised(uint256 requestId, address requester, address depositToken, uint256 depositAmount, uint256 requestAmount);
+    event TokenRequestFinalised(uint256 requestId, address requester, address requestToken, address depositToken, uint256 depositAmount, uint256 requestAmount);
 
     modifier tokenRequestExists(uint256 _tokenRequestId) {
         require(_tokenRequestId < nextTokenRequestId, ERROR_NO_REQUEST);
@@ -152,13 +152,15 @@ contract TokenRequest is AragonApp {
     }
 
     /**
-    * @notice Create a token request depositing `@tokenAmount(_depositToken, _depositAmount, true)` in exchange for `@tokenAmount(self.getToken(): address, _requestAmount, true)`
+    * @notice Create a token request depositing `@tokenAmount(_depositToken, _depositAmount, true)` in exchange for `@tokenAmount(_requestToken, _requestAmount,_requestTokenId true)`
     * @param _depositToken Address of the token being deposited
     * @param _depositAmount Amount of the token being deposited
+    * @param _requestToken Address of the token being requested
     * @param _requestAmount Amount of the token being requested
+    * @param _requestTokenId ID of the token being requested (only applies to NFTs)
     * @param _reference String detailing request reason
     */
-    function createTokenRequest(address _depositToken, uint256 _depositAmount, uint256 _requestAmount, uint256 _tokenId, string _reference)
+    function createTokenRequest(address _depositToken, uint256 _depositAmount, address _requestToken, uint256 _requestAmount, uint256 _requestTokenId, string _reference)
     external
     payable
     returns (uint256)
@@ -169,8 +171,9 @@ contract TokenRequest is AragonApp {
             require(msg.value == _depositAmount, ERROR_ETH_VALUE_MISMATCH);
         } else if (ERC721Full(_depositToken).supportsInterface(0x80ac58cd)) {
             isNFT = true;
-            require(_depositAmount == 1,  ERROR_REQUESTED_MORE_THAN_ONE_NFT);
-            ERC721Full(_depositToken).safeTransferFrom(msg.sender, address(this), _tokenId);
+            require(_requestAmount == 1,  ERROR_REQUESTED_MORE_THAN_ONE_NFT);
+            // require(_depositAmount >= ERC721Full(_depositToken).v)
+            ERC721Full(_depositToken).safeTransferFrom(msg.sender, address(this), _requestTokenId);
         } else {
             require(ERC20(_depositToken).safeTransferFrom(msg.sender, address(this), _depositAmount), ERROR_TOKEN_TRANSFER_REVERTED);
         }
@@ -178,9 +181,9 @@ contract TokenRequest is AragonApp {
         uint256 tokenRequestId = nextTokenRequestId;
         nextTokenRequestId++;
 
-        tokenRequests[tokenRequestId] = TokenRequest(msg.sender, _depositToken, _depositAmount, _requestAmount, _tokenId, isNFT, Status.Pending);
+        tokenRequests[tokenRequestId] = TokenRequest(msg.sender, _depositToken, _depositAmount, _requestToken, _requestAmount, _requestTokenId, isNFT, Status.Pending);
 
-        emit TokenRequestCreated(tokenRequestId, msg.sender, _depositToken, _depositAmount, _requestAmount, _tokenId, _reference);
+        emit TokenRequestCreated(tokenRequestId, msg.sender, _depositToken, _depositAmount, _requestToken, _requestAmount, _requestTokenId, _reference);
 
         return tokenRequestId;
     }
@@ -205,7 +208,7 @@ contract TokenRequest is AragonApp {
             if (refundToken == ETH) {
                 (bool success, ) = refundToAddress.call.value(refundAmount)();
                 require(success, ERROR_ETH_TRANSFER_FAILED);
-            } else if (ERC721Full(refundToken).supportsInterface(0x80ac58cd)) {
+            } else if (tokenRequest.isNFT) {
                 ERC721Full(refundToken).safeTransferFrom(address(this),refundToAddress, tokenId);
             } else {
                 require(ERC20(refundToken).safeTransfer(refundToAddress, refundAmount), ERROR_TOKEN_TRANSFER_REVERTED);
@@ -233,6 +236,7 @@ contract TokenRequest is AragonApp {
         tokenRequest.status = Status.Finalised;
 
         address requesterAddress = tokenRequest.requesterAddress;
+        address requestToken = tokenRequest.requestToken;
         address depositToken = tokenRequest.depositToken;
         uint256 depositAmount = tokenRequest.depositAmount;
         uint256 requestAmount = tokenRequest.requestAmount;
@@ -243,16 +247,21 @@ contract TokenRequest is AragonApp {
             if (depositToken == ETH) {
                 (bool success, ) = vault.call.value(depositAmount)();
                 require(success, ERROR_ETH_TRANSFER_FAILED);
-            } else if (ERC721Full(depositToken).supportsInterface(0x80ac58cd)) {
+            } else if (tokenRequest.isNFT) {
                 ERC721Full(depositToken).safeTransferFrom(address(this),vault,tokenId);
             } else {
                 require(ERC20(depositToken).safeTransfer(vault, depositAmount), ERROR_TOKEN_TRANSFER_REVERTED);
             }
         }
-
+        TokenManager tokenManager;
+        for (uint256 i = 0; i < tokenManagers.length; i++) {
+            if (requestToken == address(tokenManagers[i].token)) {
+                tokenManager = tokenManagers[i];
+            }
+        }
         tokenManager.mint(requesterAddress, requestAmount);
 
-        emit TokenRequestFinalised(_tokenRequestId, requesterAddress, depositToken, depositAmount, requestAmount);
+        emit TokenRequestFinalised(_tokenRequestId, requesterAddress, requestToken, depositToken, depositAmount, requestAmount);
     }
 
     function getAcceptedDepositTokens() public view returns (address[]) {
