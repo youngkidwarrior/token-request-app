@@ -49,21 +49,21 @@ contract TokenRequest is AragonApp {
         address requesterAddress;
         address depositToken;
         uint256 depositAmount;
+        address requestToken;
         uint256 requestAmount;
         uint256 tokenId;
         bool isNFT;
         Status status;
     }
 
-    TokenManager public tokenManager;
+    TokenManager[] public tokenManagers;
     address public vault;
 
     address[] public acceptedDepositTokens;
 
     uint256 public nextTokenRequestId;
     mapping(uint256 => TokenRequest) public tokenRequests; // ID => TokenRequest
-
-    event SetTokenManager(address tokenManager);
+    event AddTokenManager(address tokenManager);
     event SetVault(address vault);
     event TokenAdded(address indexed token);
     event TokenRemoved(address indexed token);
@@ -78,15 +78,17 @@ contract TokenRequest is AragonApp {
 
     /**
     * @notice Initialize TokenRequest app contract
-    * @param _tokenManager TokenManager address
+    * @param _tokenManagers TokenManager array
     * @param _vault Vault address
     * @param _acceptedDepositTokens Unique list of redeemable tokens is ascending order
     */
-    function initialize(address _tokenManager, address _vault, address[] _acceptedDepositTokens) external onlyInit {
-        require(isContract(_tokenManager), ERROR_ADDRESS_NOT_CONTRACT);
+    function initialize(TokenManager[] _tokenManagers, address _vault, address[] _acceptedDepositTokens) external onlyInit {
+        for (uint256 i = 0; i < _tokenManagers.length; i++) {
+            require(isContract(_tokenManagers[i]), ERROR_ADDRESS_NOT_CONTRACT);
+        }
         require(_acceptedDepositTokens.length <= MAX_ACCEPTED_DEPOSIT_TOKENS, ERROR_TOO_MANY_ACCEPTED_TOKENS);
 
-        for (uint256 i = 0; i < _acceptedDepositTokens.length; i++) {
+        for ( i = 0; i < _acceptedDepositTokens.length; i++) {
             address acceptedDepositToken = _acceptedDepositTokens[i];
             if (acceptedDepositToken != ETH) {
                 require(isContract(acceptedDepositToken), ERROR_ADDRESS_NOT_CONTRACT);
@@ -95,8 +97,7 @@ contract TokenRequest is AragonApp {
                 require(_acceptedDepositTokens[i - 1] < _acceptedDepositTokens[i], ERROR_ACCEPTED_TOKENS_MALFORMED);
             }
         }
-
-        tokenManager = TokenManager(_tokenManager);
+        tokenManagers = _tokenManagers;
         vault = _vault;
         acceptedDepositTokens = _acceptedDepositTokens;
 
@@ -104,14 +105,14 @@ contract TokenRequest is AragonApp {
     }
 
     /**
-    * @notice Set the Token Manager to `_tokenManager`.
+    * @notice Add Token Manager to `_tokenManager`.
     * @param _tokenManager The new token manager address
     */
-    function setTokenManager(address _tokenManager) external auth(SET_TOKEN_MANAGER_ROLE) {
+    function addTokenManager(address _tokenManager) external auth(SET_TOKEN_MANAGER_ROLE) {
         require(isContract(_tokenManager), ERROR_ADDRESS_NOT_CONTRACT);
 
-        tokenManager = TokenManager(_tokenManager);
-        emit SetTokenManager(_tokenManager);
+        tokenManagers.push(TokenManager(_tokenManager));
+        emit AddTokenManager(_tokenManager);
     }
 
     /**
@@ -261,6 +262,7 @@ contract TokenRequest is AragonApp {
     function getTokenRequest(uint256 _tokenRequestId) public view
     returns (
         address requesterAddress,
+        address requestToken,
         address depositToken,
         uint256 depositAmount,
         uint256 requestAmount
@@ -269,16 +271,25 @@ contract TokenRequest is AragonApp {
         TokenRequest storage tokenRequest = tokenRequests[_tokenRequestId];
 
         requesterAddress = tokenRequest.requesterAddress;
+        requestToken = tokenRequest.requestToken;
         depositToken = tokenRequest.depositToken;
         depositAmount = tokenRequest.depositAmount;
         requestAmount = tokenRequest.requestAmount;
     }
 
+    function getTokenManagers() public view returns(TokenManager[]){
+        return tokenManagers;
+    }
+
     /**
     * @dev Convenience function for getting the token request token in a radspec string
     */
-    function getToken() public returns (address) {
-        return tokenManager.token();
+    function getTokens() public returns (address[]) {
+        address[] memory tokens;
+        for (uint256 i = 0; i < tokenManagers.length; i++) {
+            tokens[i] = tokenManagers[i].token();
+        }
+        return tokens;
     }
 
     /**
