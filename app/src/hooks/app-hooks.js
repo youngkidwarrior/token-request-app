@@ -51,9 +51,19 @@ export function useRequestAction(onDone) {
   const { api } = useAragonApi()
 
   return useCallback(
-    (depositTokenAddress, depositAmount, requestAmount, reference, tokenId, intentParams) => {
+    (depositTokenAddress, depositAmount, requestToken, requestAmount, tokenId, reference, intentParams) => {
       try {
-        api.createTokenRequest(depositTokenAddress, depositAmount, requestAmount, reference, tokenId, intentParams).toPromise()
+        api
+          .createTokenRequest(
+            depositTokenAddress,
+            depositAmount,
+            requestToken,
+            requestAmount,
+            tokenId,
+            reference,
+            intentParams
+          )
+          .toPromise()
 
         onDone()
       } catch (error) {
@@ -99,7 +109,7 @@ export function useWithdrawAction(onDone) {
 }
 
 export function useAppLogic() {
-  const { account, token, isSyncing, ready, requests, acceptedTokens = [], nftList } = useAppState()
+  const { account, orgTokens, isSyncing, ready, requests, acceptedTokens = [], nftList } = useAppState()
   const [selectedRequest, selectRequest] = useSelectedRequest(requests)
   const panelState = useSidePanel()
 
@@ -116,9 +126,9 @@ export function useAppLogic() {
     selectRequest,
     acceptedTokens,
     account,
-    token,
+    orgTokens,
     actions,
     requests,
-    nftList
+    nftList,
   }
 }
