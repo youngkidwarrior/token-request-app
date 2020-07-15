@@ -94,17 +94,27 @@ const NewRequest = React.memo(({ panelOpened, acceptedTokens, onRequest, connect
       setSelectedToken({ ...selectedToken, data: { ...tokenData } })
       setTokenBalanceMessage(renderBalanceForSelectedToken(tokenData))
     }
-    if (selectedToken.index != -1) {
-      getSelectedTokenData()
+
+  useEffect(() => {
+    async function getTokenData() {
+      const selectedTokenData = await loadTokenData(selectedToken.value)
+
+      setSelectedToken({ ...selectedToken, data: { ...selectedTokenData } })
+      setTokenBalanceMessage(renderBalanceForSelectedToken(selectedTokenData))
+
+      const orgTokenData = await loadTokenData(selectedOrgToken.value)
+      setSelectedOrgToken({ ...selectedOrgToken, data: { ...orgTokenData } })
+    }
+    if (selectedToken.index != -1 && selectedOrgToken.index != -1) {
+      getTokenData()
       const ethSelected =
         isAddress(selectedToken.value) && addressesEqual(selectedToken.value, ETHER_TOKEN_FAKE_ADDRESS)
-      const nftSelected =
-        isAddress(selectedToken.value) && nftList.contains(selectedToken.value)
+      const nftSelected = isAddress(orgToken.value) && nftList.includes(orgToken.value)
       setIsNFTSelected(nftSelected)
       const tokenSelected = selectedToken.value && !ethSelected && !nftSelected
       setIsTokenSelected(tokenSelected)
     }
-  }, [selectedToken.index, nftList])
+  }, [selectedToken.index, selectedOrgToken.index, nftList])
 
   useEffect(() => {
     if (!panelOpened) {
