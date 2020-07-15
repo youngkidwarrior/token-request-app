@@ -44,6 +44,13 @@ const initialState = {
     value: '',
     data: {},
   },
+  selectedOrgToken: {
+    coerced: false, // whether the token was coerced from a symbol to an address
+    error: NO_ERROR,
+    index: -1,
+    value: '',
+    data: {},
+  },
   reference: '',
   depositErrorMessage: '',
   submitButtonDisabled: false,
@@ -52,11 +59,13 @@ const initialState = {
 }
 
 const NewRequest = React.memo(({ panelOpened, acceptedTokens, onRequest, connectedAccount }) => {
-  const { token, nftList } = useAppState()
+  const { orgTokens, nftList } = useAppState()
   const network = useNetwork()
   const api = useApi()
+  const requestTokenId = 0
   const isMainnet = network.type === 'main'
   const [selectedToken, setSelectedToken] = useState({ ...initialState.selectedToken })
+  const [selectedOrgToken, setSelectedOrgToken] = useState({ ...initialState.selectedOrgToken })
   const [depositedAmount, setDepositedAmount] = useState({ ...initialState.amount })
   const [reference, setReference] = useState(initialState.reference)
   const [requestedAmount, setRequestedAmount] = useState('')
