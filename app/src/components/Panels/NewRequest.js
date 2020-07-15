@@ -89,11 +89,16 @@ const NewRequest = React.memo(({ panelOpened, acceptedTokens, onRequest, connect
   }, [acceptedTokens])
 
   useEffect(() => {
-    async function getSelectedTokenData() {
-      const tokenData = await loadTokenData(selectedToken.value)
-      setSelectedToken({ ...selectedToken, data: { ...tokenData } })
-      setTokenBalanceMessage(renderBalanceForSelectedToken(tokenData))
+    if (orgTokens && orgTokens.length > 0) {
+      if (selectedOrgToken.index === -1) {
+        setSelectedOrgToken({
+          ...initialState.selectedOrgToken,
+          index: 0,
+          value: orgTokens[0].address,
+        })
+      }
     }
+  }, [orgTokens])
 
   useEffect(() => {
     async function getTokenData() {
@@ -171,23 +176,24 @@ const NewRequest = React.memo(({ panelOpened, acceptedTokens, onRequest, connect
   }
 
   const handleFormSubmit = useCallback(
-    e => {
+    (e) => {
       e.preventDefault()
       const depositAmount = toDecimals(depositedAmount.value, selectedToken.data.decimals)
       // hard coded need to get tokenId from smart contract or somewhere
-      const tokenId = nftIsSelected ? 0 : null;
-      const requested = toDecimals(requestedAmount, Number(token.decimals))
-      onRequest(selectedToken.value, depositAmount, requested, tokenId, reference)
+      // const tokenId = isNFTSelected ? 0 : null;
+      const requestTokenId = 0
+      const requested = toDecimals(requestedAmount, Number(selectedOrgToken.data.decimals))
+      onRequest(selectedToken.value, depositAmount, selectedOrgToken.value, requested, requestTokenId, reference)
     },
-    [onRequest, token, selectedToken, depositedAmount, requestedAmount, tokenId, reference]
+    [onRequest, selectedToken, depositedAmount, selectedOrgToken, requestedAmount, requestTokenId, reference]
   )
 
-  const handleRequestedAmountUpdate = useCallback(e => {
+  const handleRequestedAmountUpdate = useCallback((e) => {
     setRequestedAmount(e.target.value)
   })
 
   const handleAmountUpdate = useCallback(
-    e => {
+    (e) => {
       validateInputs({
         amount: {
           value: e.target.value,
@@ -197,7 +203,7 @@ const NewRequest = React.memo(({ panelOpened, acceptedTokens, onRequest, connect
     [depositedAmount]
   )
 
-  const handleReferenceUpdate = useCallback(e => {
+  const handleReferenceUpdate = useCallback((e) => {
     setReference(e.target.value)
   })
 
@@ -212,10 +218,24 @@ const NewRequest = React.memo(({ panelOpened, acceptedTokens, onRequest, connect
     if (!tokenIsAddress) {
       return
     }
-    setSelectedToken(token)
+      setSelectedOrgToken(token)
   })
 
-  const loadTokenData = async address => {
+  const handleSelectedOrgToken = useCallback(({ address, index, value }) => {
+    const tokenIsAddress = isAddress(address)
+    const token = {
+      index,
+      coerced: tokenIsAddress && address !== value,
+      value: address,
+      data: { loading: true },
+    }
+    if (!tokenIsAddress) {
+      return
+    }
+    setSelectedOrgToken(token)
+  })
+
+  const loadTokenData = async (address) => {
     // ETH
     if (addressesEqual(address, ETHER_TOKEN_FAKE_ADDRESS)) {
       const userBalance = await api
@@ -254,7 +274,7 @@ const NewRequest = React.memo(({ panelOpened, acceptedTokens, onRequest, connect
       token
         .decimals()
         .toPromise()
-        .then(decimals => parseInt(decimals, 10))
+        .then((decimals) => parseInt(decimals, 10))
         .catch(() => ''),
     ])
 
@@ -303,18 +323,23 @@ const NewRequest = React.memo(({ panelOpened, acceptedTokens, onRequest, connect
         margin-top: ${3 * GU}px;
       `}
     >
-      <Field label='Requested amount' required>
+      <Field label="Requested amount" required>
         <CombinedInput>
           <TextInput.Number
             value={requestedAmount}
             onChange={handleRequestedAmountUpdate}
             min={0}
             max={isNFTSelected ? 1 : null}
-            step='any'
+            step="any"
             required
             wide
           />
-          <TokenSelector activeIndex={0} onChange={() => {}} tokens={orgToken} disabled />
+          <TokenSelector
+            activeIndex={orgTokens.length === 1 ? 0 : selectedOrgToken.index}
+            onChange={handleSelectedOrgToken}
+            tokens={orgTokens}
+            disabled={orgTokens.length === 1}
+          />
         </CombinedInput>
       </Field>
 
