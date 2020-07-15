@@ -133,16 +133,19 @@ const NewRequest = React.memo(({ panelOpened, acceptedTokens, onRequest, connect
   }, [panelOpened])
 
   useEffect(() => {
-    if (
-      token &&
-      !orgToken.find(element => {
-        return element.address === token.address
-      })
-    ) {
-      const tokens = orgToken.concat(token)
-      setOrgToken(tokens)
+    let tokens = []
+    for (let token of orgTokens) {
+      if (
+        orgTokens &&
+        !orgToken.find((element) => {
+          return element.address === token.address
+        })
+      ) {
+        tokens = orgToken.concat(token)
+      }
     }
-  }, [token])
+    setOrgToken(tokens)
+  }, [orgTokens])
 
   useEffect(() => {
     let errorMessage
