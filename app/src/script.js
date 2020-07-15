@@ -124,14 +124,16 @@ async function updateConnectedAccount(state, { account }) {
 
 async function newTokenRequest(
   state,
-  { requestId, requesterAddress, depositToken, depositAmount, requestAmount, reference },
+  { requestId, requesterAddress, depositToken, depositAmount, requestToken, requestAmount, requestTokenId, reference },
   settings,
   blockNumber
 ) {
   try {
     const { requests = [] } = state
-    const { decimals, name, symbol } =
+    const { decimals: depositDecimals, name: depositName, symbol: depositSymbol } =
       depositToken === ETHER_TOKEN_FAKE_ADDRESS ? ETHER_DATA : await getTokenData(depositToken, settings)
+    const { decimals: requestDecimals, name: requestName, symbol: requestSymbol } =
+      requestToken === ETHER_TOKEN_FAKE_ADDRESS ? ETHER_DATA : await getTokenData(requestToken, settings)
 
     const { timestamp } = await app.web3Eth('getBlock', blockNumber).toPromise()
 
@@ -143,11 +145,16 @@ async function newTokenRequest(
           requestId,
           requesterAddress,
           depositToken,
-          depositDecimals: decimals,
-          depositName: name,
-          depositSymbol: symbol,
+          depositDecimals,
+          depositName,
+          depositSymbol,
           depositAmount,
+          requestToken,
+          requestDecimals,
+          requestName,
+          requestSymbol,
           requestAmount,
+          requestTokenId,
           reference,
           status: requestStatus.PENDING,
           date: marshallDate(timestamp),
