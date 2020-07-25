@@ -3,6 +3,7 @@ import 'regenerator-runtime/runtime'
 import Aragon, { events } from '@aragon/api'
 import { first } from 'rxjs/operators'
 import tmAbi from './abi/tokenManager.json'
+import agentAbi from './abi/Agent.json'
 import { requestStatus } from './lib/constants'
 import {
   tokenDataFallback,
@@ -19,32 +20,95 @@ const ETHER_DATA = {
   name: 'Ether',
   symbol: 'ETH',
 }
+let agentOrVaultAddress = ''
 
-app
-  .call('getTokenManagers')
-  .subscribe(initialize, (err) =>
-    console.error(`Could not start background script execution due to the contract not loading token: ${err}`)
+/*
+ * Calls `callback` exponentially, everytime `retry()` is called.
+ * Returns a promise that resolves with the callback's result if it (eventually) succeeds.
+ *
+ * Usage:
+ *
+ * retryEvery(retry => {
+ *  // do something
+ *
+ *  if (condition) {
+ *    // retry in 1, 2, 4, 8 seconds… as long as the condition passes.
+ *    retry()
+ *  }
+ * }, 1000, 2)
+ *
+ */
+const retryEvery = async (callback, { initialRetryTimer = 1000, increaseFactor = 3, maxRetries = 3 } = {}) => {
+  const sleep = (time) => new Promise((resolve) => setTimeout(resolve, time))
+
+  let retryNum = 0
+  const attempt = async (retryTimer = initialRetryTimer) => {
+    try {
+      return await callback()
+    } catch (err) {
+      if (retryNum === maxRetries) {
+        throw err
+      }
+      ++retryNum
+
+      // Exponentially backoff attempts
+      const nextRetryTime = retryTimer * increaseFactor
+      console.log(`Retrying in ${nextRetryTime}s... (attempt ${retryNum} of ${maxRetries})`)
+      await sleep(nextRetryTime)
+      return attempt(nextRetryTime)
+    }
+  }
+
+  return attempt()
+}
+
+// Get the agent Or vault address to initialize ourselves
+
+retryEvery(
+  async () =>
+    (agentOrVaultAddress = await app
+      .call('agentOrVault')
+      .toPromise()
+      .catch((err) => {
+        console.error('Could not start background script execution due to the contract not loading the vault:', err)
+        throw err
+      }))
+)
+
+retryEvery(() =>
+  app.call('getTokenManagers').subscribe(
+    (tokenManagers) => initialize(tokenManagers, agentOrVaultAddress),
+    (err) => {
+      console.error(`Could not start background script execution due to the contract not loading token: ${err}`)
+    }
   )
+)
 
-async function initialize(tokenManagerAddresses) {
-  let tokens = []
-  let tmContracts = []
+async function initialize(tokenManagerAddresses, agentOrVaultAddress) {
+  const agentOrVaultContract = app.external(agentOrVaultAddress, agentAbi)
   const network = await app
     .network()
     .pipe(first())
     .toPromise()
-  for (let tokenManager of tokenManagerAddresses) {
-    tmContracts.push(app.external(tokenManager, tmAbi))
+
+  let tokens = []
+  let tmContracts = []
+  let nftTokens = []
+  for (let tokenManagerAddress of tokenManagerAddresses) {
+    tmContracts.push(app.external(tokenManagerAddress, tmAbi))
   }
   tokens = await app.call('getAcceptedDepositTokens').toPromise()
-
   const settings = {
     network,
+    agentOrVault: {
+      address: agentOrVaultAddress,
+      contract: agentOrVaultContract,
+    },
   }
-  return createStore(tmContracts, tokens, settings)
+  return createStore(tmContracts, nftTokens, tokens, settings)
 }
 
-async function createStore(tokenManagerContracts, tokens, settings) {
+async function createStore(tokenManagerContracts, nftTokens, tokens, settings) {
   return app.store(
     (state, { event, returnValues, blockNumber }) => {
       let nextState = {
@@ -64,12 +128,19 @@ async function createStore(tokenManagerContracts, tokens, settings) {
           return requestRefunded(nextState, returnValues)
         case 'TokenRequestFinalised':
           return requestFinalised(nextState, returnValues)
+        case 'ReceiveERC721':
+          return nftReceived(nextState, returnValues)
         default:
           return state
       }
     },
     {
-      init: initializeState(tokenManagerContracts, tokens, settings),
+      init: initializeState(tokenManagerContracts, nftTokens, tokens, settings),
+      externals: [
+        {
+          contract: settings.agentOrVault.contract,
+        },
+      ],
     }
   )
 }
@@ -80,7 +151,7 @@ async function createStore(tokenManagerContracts, tokens, settings) {
  *                     *
  ***********************/
 
-function initializeState(tokenManagerContracts, tokens, settings) {
+function initializeState(tokenManagerContracts, nftTokens, tokens, settings) {
   return async (cachedState) => {
     try {
       const orgTokens = []
@@ -101,6 +172,9 @@ function initializeState(tokenManagerContracts, tokens, settings) {
         isSyncing: true,
         orgTokens,
         acceptedTokens,
+        nftTokens,
+        lastSoldBlock: 0,
+        totalSoldNFT: 0,
       }
     } catch (error) {
       console.error('Error initializing state: ', error)
@@ -110,10 +184,19 @@ function initializeState(tokenManagerContracts, tokens, settings) {
 
 const getAcceptedTokens = async (tokens, settings) => {
   const promises = tokens
-    .filter(token => token != ETHER_TOKEN_FAKE_ADDRESS)
-    .map(tokenAddress => getTokenData(tokenAddress, settings))
+    .filter((token) => token != ETHER_TOKEN_FAKE_ADDRESS)
+    .map((tokenAddress) => getTokenData(tokenAddress, settings))
   return Promise.all(promises)
 }
+
+// const getNFTTokens = async (agentContract) => {
+//   const nftAddressesLength = await agentContract.getNFTTokensLength().toPromise()
+//   console.log('nftAddressesLength: ', nftAddressesLength)
+//   // for (let i = 0; i < nftAddressesLength; i++) {
+//   //   console.log('agentContract: ', await agentContract.nftTokens(i).toPromise())
+//   // }
+//   return nftAddressesLength
+// }
 
 async function updateConnectedAccount(state, { account }) {
   return {
@@ -129,18 +212,23 @@ async function newTokenRequest(
   blockNumber
 ) {
   try {
-    const { requests = [] } = state
+    const { requests = [], nftTokens } = state
     const { decimals: depositDecimals, name: depositName, symbol: depositSymbol } =
       depositToken === ETHER_TOKEN_FAKE_ADDRESS ? ETHER_DATA : await getTokenData(depositToken, settings)
     const { decimals: requestDecimals, name: requestName, symbol: requestSymbol } =
       requestToken === ETHER_TOKEN_FAKE_ADDRESS ? ETHER_DATA : await getTokenData(requestToken, settings)
 
+    const nftSelected = nftTokens.includes(requestToken.value)
+    if (nftSelected) {
+      nftTokens = nftTokens.filter((nft) => nft !== requestToken)
+    }
     const { timestamp } = await app.web3Eth('getBlock', blockNumber).toPromise()
 
     return {
       ...state,
       requests: [
         ...requests,
+        nftTokens,
         {
           requestId,
           requesterAddress,
@@ -167,20 +255,43 @@ async function newTokenRequest(
 }
 
 async function requestRefunded(state, { requestId }) {
-  const { requests } = state
-  const nextStatus = requestStatus.WITHDRAWN
+  const { requests, nftTokens, selectedRequest } = state
+  const tokenAddress = selectedRequest.requestTokenAddress
+  const nftSelected = nftTokens.includes(tokenAddress.value)
+  if (nftSelected) {
+    nftTokens = [...nftTokens, tokenAddress]
+  }
   return {
     ...state,
+    nftTokens,
     requests: await updateRequestStatus(requests, requestId, nextStatus),
   }
 }
 async function requestFinalised(state, { requestId }) {
-  const { requests } = state
+  const { requests, nftTokens, selectedRequest, lastSoldBlock } = state
   const nextStatus = requestStatus.APPROVED
+  const tokenAddress = selectedRequest.requestTokenAddress
+  const nftSelected = nftTokens.includes(tokenAddress.value)
+  if (nftSelected) {
+    lastSoldBlock = await api.web3Eth('getBlockNumber').toPromise()
+    totalSoldNFT++
+  }
 
   return {
     ...state,
+    lastSoldBlock,
+    totalSoldNFT,
+    nftTokens,
     requests: await updateRequestStatus(requests, requestId, nextStatus),
+  }
+}
+
+async function nftReceived(state, { token, tokenId }) {
+  const { nftTokens } = state
+  nftTokens = [...nftTokens, { token, tokenId }]
+  return {
+    ...state,
+    nftTokens,
   }
 }
 
@@ -205,7 +316,7 @@ async function getTokenData(tokenAddress, settings) {
 }
 
 async function updateRequestStatus(requests, requestId, nextStatus) {
-  const requestIndex = requests.findIndex(request => request.requestId === requestId)
+  const requestIndex = requests.findIndex((request) => request.requestId === requestId)
 
   if (requestIndex !== -1) {
     const nextRequests = Array.from(requests)

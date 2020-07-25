@@ -2,7 +2,6 @@ import { useCallback, useState, useMemo } from 'react'
 import { useAppState, useAragonApi, usePath } from '@aragon/api-react'
 import { useSidePanel } from './utils-hooks'
 
-
 const REQUEST_ID_PATH_RE = /^\/request\/([0-9]+)\/?$/
 const NO_REQUEST_ID = '-1'
 
@@ -27,11 +26,11 @@ export function useSelectedRequest(requests) {
     if (!ready || requestId === NO_REQUEST_ID) {
       return null
     }
-    return requests.find(request => request.requestId === requestId) || null
+    return requests.find((request) => request.requestId === requestId) || null
   }, [path, requests, ready])
 
   const selectRequest = useCallback(
-    requestId => {
+    (requestId) => {
       requestPath(String(requestId) === NO_REQUEST_ID ? '' : `/request/${requestId}/`)
     },
     [requestPath]
@@ -78,10 +77,9 @@ export function useSubmitAction(onDone) {
   const { api } = useAragonApi()
 
   return useCallback(
-    requestId => {
+    (requestId) => {
       try {
         api.finaliseTokenRequest(requestId).toPromise()
-
         onDone()
       } catch (error) {
         console.error(error)
@@ -95,7 +93,7 @@ export function useWithdrawAction(onDone) {
   const { api } = useAragonApi()
 
   return useCallback(
-    requestId => {
+    (requestId) => {
       try {
         api.refundTokenRequest(requestId).toPromise()
 
@@ -109,10 +107,19 @@ export function useWithdrawAction(onDone) {
 }
 
 export function useAppLogic() {
-  const { account, orgTokens, isSyncing, ready, requests, acceptedTokens = [], nftList } = useAppState()
+  const {
+    account,
+    orgTokens,
+    isSyncing,
+    ready,
+    requests,
+    acceptedTokens = [],
+    nftTokens,
+    lastSoldBlock,
+    totalSoldNFT,
+  } = useAppState()
   const [selectedRequest, selectRequest] = useSelectedRequest(requests)
   const panelState = useSidePanel()
-
   const actions = {
     request: useRequestAction(panelState.requestClose),
     submit: useSubmitAction(panelState.requestClose),
@@ -129,6 +136,8 @@ export function useAppLogic() {
     orgTokens,
     actions,
     requests,
-    nftList,
+    nftTokens,
+    lastSoldBlock,
+    totalSoldNFT,
   }
 }

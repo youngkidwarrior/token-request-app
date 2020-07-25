@@ -59,7 +59,7 @@ const initialState = {
 }
 
 const NewRequest = React.memo(({ panelOpened, acceptedTokens, onRequest, connectedAccount }) => {
-  const { orgTokens, nftList } = useAppState()
+  const { orgTokens, nftTokens } = useAppState()
   const network = useNetwork()
   const api = useApi()
   const requestTokenId = 0
@@ -114,12 +114,12 @@ const NewRequest = React.memo(({ panelOpened, acceptedTokens, onRequest, connect
       getTokenData()
       const ethSelected =
         isAddress(selectedToken.value) && addressesEqual(selectedToken.value, ETHER_TOKEN_FAKE_ADDRESS)
-      const nftSelected = isAddress(orgToken.value) && nftList.includes(orgToken.value)
+      const nftSelected = isAddress(orgToken.value) && nftTokens.includes(orgToken.value)
       setIsNFTSelected(nftSelected)
       const tokenSelected = selectedToken.value && !ethSelected && !nftSelected
       setIsTokenSelected(tokenSelected)
     }
-  }, [selectedToken.index, selectedOrgToken.index, nftList])
+  }, [selectedToken.index, selectedOrgToken.index, nftTokens])
 
   useEffect(() => {
     if (!panelOpened) {
@@ -218,7 +218,7 @@ const NewRequest = React.memo(({ panelOpened, acceptedTokens, onRequest, connect
     if (!tokenIsAddress) {
       return
     }
-      setSelectedOrgToken(token)
+      setSelectedToken(token)
   })
 
   const handleSelectedOrgToken = useCallback(({ address, index, value }) => {

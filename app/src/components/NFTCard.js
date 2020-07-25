@@ -10,7 +10,7 @@ import { addressesEqual } from '../lib/web3-utils'
 
 const PAGINATION = 10
 
-const RequestTable = React.memo(({ requests, tokens, onSubmit, onWithdraw, ownRequests, onSelectRequest }) => {
+const RequestTable = React.memo(({}) => {
   const connectedAccount = useConnectedAccount()
   const theme = useTheme()
 
@@ -39,19 +39,19 @@ const RequestTable = React.memo(({ requests, tokens, onSubmit, onWithdraw, ownRe
 
   const getEntries = useMemo(() => {
     return requests.map((r) => [
-        r.requestId,
-        r.date,
-        r.requesterAddress,
-        r.depositAmount,
-        r.depositSymbol,
-        r.depositToken,
-        r.depositName,
-        r.depositDecimals,
-        r.requestAmount,
-        r.status,
-        r.requestSymbol,
-        r.requestDecimals,
-      ])
+      r.requestId,
+      r.date,
+      r.requesterAddress,
+      r.depositAmount,
+      r.depositSymbol,
+      r.depositToken,
+      r.depositName,
+      r.depositDecimals,
+      r.requestAmount,
+      r.status,
+      token.symbol,
+      token.decimals,
+    ])
   }, [requests, compareDesc, ownRequests])
 
   const getRow = (

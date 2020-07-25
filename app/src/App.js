@@ -1,14 +1,14 @@
 import React, { useState, useCallback } from 'react'
 import styled from 'styled-components'
 import PropTypes from 'prop-types'
-import { useAragonApi, useGuiStyle } from '@aragon/api-react'
+import { useAragonApi, useApi, useGuiStyle } from '@aragon/api-react'
 import { Main, SidePanel, SyncIndicator, Tabs, Header, GU } from '@aragon/ui'
 import NewRequest from './components/Panels/NewRequest'
 import { useAppLogic } from './hooks/app-hooks'
 import requestIcon from './assets/icono.svg'
 import { ETHER_TOKEN_FAKE_ADDRESS } from './lib/token-utils'
 import Requests from './screens/Requests'
-import NFT from './screens/NFT'
+import NFTGallery from './screens/NFTGallery'
 import RequestDetail from './screens/RequestDetail'
 import MainButton from './components/MainButton'
 import { IdentityProvider } from './identity-manager'
@@ -23,13 +23,21 @@ const App = () => {
     requests,
     selectRequest,
     selectedRequest,
-    nftList,
+    nftTokens,
+    lastSoldBlock,
+    totalSoldNFT,
   } = useAppLogic()
   const { appearance } = useGuiStyle()
   const [screenIndex, setScreenIndex] = useState(0)
   const handleBack = useCallback(() => selectRequest(-1), [selectRequest])
-
-  const handleRequest = async (tokenAddress, depositAmount, requestTokenAddress, requestedAmount, tokenId, reference) => {
+  const handleRequest = async (
+    tokenAddress,
+    depositAmount,
+    requestTokenAddress,
+    requestedAmount,
+    tokenId,
+    reference
+  ) => {
     let intentParams
     if (tokenAddress === ETHER_TOKEN_FAKE_ADDRESS) {
       intentParams = { value: depositAmount }
@@ -98,14 +106,16 @@ const App = () => {
               />
             </TabsWrapper>
             {screenIndex == 2 ? (
-              <NFT
-                nftList={nftList}
+              <NFTGallery
+                nftTokens={nftTokens}
+                lastSoldBlock={lastSoldBlock}
+                totalSoldNFT={totalSoldNFT}
                 tokens={orgTokens}
                 onSubmit={handleSubmit}
                 onWithdraw={handleWithdraw}
                 ownRequests={screenIndex === 1}
                 onSelectRequest={selectRequest}
-              ></NFT>
+              ></NFTGallery>
             ) : (
               <Requests
                 requests={requests}

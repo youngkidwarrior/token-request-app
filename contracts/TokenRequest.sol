@@ -23,7 +23,7 @@ contract TokenRequest is AragonApp {
     bytes32 public constant SET_TOKEN_MANAGER_ROLE = keccak256(
         "SET_TOKEN_MANAGER_ROLE"
     );
-    bytes32 public constant SET_VAULT_ROLE = keccak256("SET_VAULT_ROLE");
+    bytes32 public constant SET_AGENT_OR_VAULT_ROLE = keccak256("SET_AGENTORVAULT_ROLE");
     bytes32 public constant FINALISE_TOKEN_REQUEST_ROLE = keccak256(
         "FINALISE_TOKEN_REQUEST_ROLE"
     );
@@ -55,7 +55,6 @@ contract TokenRequest is AragonApp {
         private constant ERROR_REQUESTED_MORE_THAN_ONE_NFT = "ERROR_REQUESTED_MORE_THAN_ONE_NFT";
 
     uint256 public constant MAX_ACCEPTED_DEPOSIT_TOKENS = 100;
-    uint256 public constant BASE_NFT_SELL_VALUE = 1;
 
     enum Status {Pending, Refunded, Finalised}
 
@@ -71,14 +70,18 @@ contract TokenRequest is AragonApp {
     }
 
     TokenManager[] public tokenManagers;
-    address public vault;
+    address public agentOrVault;
 
     address[] public acceptedDepositTokens;
 
     uint256 public nextTokenRequestId;
     mapping(uint256 => TokenRequest) public tokenRequests; // ID => TokenRequest
+
+    // uint256 public totalNFTSold;
+    // uint256 public lastSellTime;
+
     event AddTokenManager(address tokenManager);
-    event SetVault(address vault);
+    event SetAgentOrVault(address agentOrVault);
     event TokenAdded(address indexed token);
     event TokenRemoved(address indexed token);
     event TokenRequestCreated(
@@ -114,12 +117,12 @@ contract TokenRequest is AragonApp {
     /**
      * @notice Initialize TokenRequest app contract
      * @param _tokenManagers TokenManager array
-     * @param _vault Vault address
+     * @param _agentOrVault Agent Or Vault address
      * @param _acceptedDepositTokens Unique list of redeemable tokens is ascending order
      */
     function initialize(
         TokenManager[] _tokenManagers,
-        address _vault,
+        address _agentOrVault,
         address[] _acceptedDepositTokens
     ) external onlyInit {
         for (uint256 i = 0; i < _tokenManagers.length; i++) {
@@ -146,7 +149,7 @@ contract TokenRequest is AragonApp {
             }
         }
         tokenManagers = _tokenManagers;
-        vault = _vault;
+        agentOrVault = _agentOrVault;
         acceptedDepositTokens = _acceptedDepositTokens;
 
         initialized();
@@ -167,12 +170,12 @@ contract TokenRequest is AragonApp {
     }
 
     /**
-     * @notice Set the Vault to `_vault`.
-     * @param _vault The new vault address
+     * @notice Set the Agent or Vault to `_agentOrVault`.
+     * @param _agentOrVault The new vault address
      */
-    function setVault(address _vault) external auth(SET_VAULT_ROLE) {
-        vault = _vault;
-        emit SetVault(_vault);
+    function setAgentOrVault(address _agentOrVault) external auth(SET_AGENT_OR_VAULT_ROLE) {
+        agentOrVault = _agentOrVault;
+        emit SetAgentOrVault(_agentOrVault);
     }
 
     /**
@@ -345,18 +348,18 @@ contract TokenRequest is AragonApp {
 
         if (depositAmount > 0) {
             if (depositToken == ETH) {
-                (bool success, ) = vault.call.value(depositAmount)();
+                (bool success, ) = agentOrVault.call.value(depositAmount)();
                 require(success, ERROR_ETH_TRANSFER_FAILED);
             } else {
                 require(
-                    ERC20(depositToken).safeTransfer(vault, depositAmount),
+                    ERC20(depositToken).safeTransfer(agentOrVault, depositAmount),
                     ERROR_TOKEN_TRANSFER_REVERTED
                 );
             }
         }
 
         if (isNFT) {
-            ERC721Full(requestToken).safeTransferFrom(vault,requesterAddress,tokenId);
+            ERC721Full(requestToken).safeTransferFrom(agentOrVault,requesterAddress,tokenId);
         } else {
             TokenManager tokenManager;
             for (uint256 i = 0; i < tokenManagers.length; i++) {
@@ -377,14 +380,18 @@ contract TokenRequest is AragonApp {
         );
     }
 
-
     function requestNFT(address _tokenAddress) public view returns (bool isNFT) {
-        if (ERC721Full(_tokenAddress).supportsInterface(0x80ac58cd)) {
-            return true;
-        } else {
-            return false;
-        }
+        return ERC721Full(_tokenAddress).supportsInterface(0x80ac58cd);
     }
+
+       /**
+     * @dev Calculates NFT value after time depreciation
+     */
+    // function evaluateNFTValue() internal view returns (uint256){
+    //     uint256 maxValue = BASE_NFT_VALUE * (2 ** totalNFTSold);
+    //     uint256 timeDepreciation = (maxValue/100) * (now - lastSellTime);
+    //     return maxValue - timeDepreciation;
+    // }
 
     function getAcceptedDepositTokens() public view returns (address[]) {
         return acceptedDepositTokens;

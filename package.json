@@ -59,6 +59,7 @@
     "truffle": "^5.0.1"
   },
   "dependencies": {
+    "@aragon/apps-agent": "^2.1.0",
     "@aragon/apps-token-manager": "^2.1.0",
     "@aragon/os": "^4.0.1",
     "openzeppelin-solidity": "2.0.1"

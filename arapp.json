@@ -19,6 +19,11 @@
       "name": "Add/Remove a token from the accepted tokens",
       "id": "MODIFY_TOKENS_ROLE",
       "params": []
+    },
+    {
+      "name": "Agent Run Script",
+      "id": "RUN_SCRIPT_ROLE",
+      "params":[]
     }
   ],
   "environments": {
