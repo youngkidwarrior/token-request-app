@@ -3,7 +3,7 @@ import 'regenerator-runtime/runtime'
 import Aragon, { events } from '@aragon/api'
 import { first } from 'rxjs/operators'
 import tmAbi from './abi/tokenManager.json'
-import agentAbi from './abi/Agent.json'
+import agentAbi from './abi/agent.json'
 import { requestStatus } from './lib/constants'
 import retryEvery from './lib/retry-every'
 import {
