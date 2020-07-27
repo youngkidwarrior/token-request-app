@@ -20,6 +20,7 @@ class TokenSelector extends React.Component {
     label: 'Token',
     labelCustomToken: 'Token address or symbol',
     disabled: false,
+    selectedNFT:{}
   }
   state = {
     ...INITIAL_STATE,
@@ -27,6 +28,7 @@ class TokenSelector extends React.Component {
   handleChange = index => {
     this.setState({ ...INITIAL_STATE }, () => {
       const address = this.getAddressFromTokens(index)
+      const tokenId = this.getTokenIdFromTokens(index)
       this.props.onChange({
         address,
         index,
@@ -63,9 +65,16 @@ class TokenSelector extends React.Component {
   }
   getAddressFromTokens(index) {
     // Adjust for custom address
-    const token = this.props.tokens[index]
+    const token = this.props.tokens[index] 
     return token.address
   }
+
+  getTokenIdFromTokens(index) {
+    // Only erc721 has tokenId
+    const token = this.props.tokens[index] 
+    return token.tokenId ? token.tokenId : null
+  }
+
   getItems() {
     return [...this.getTokenItems()]
   }

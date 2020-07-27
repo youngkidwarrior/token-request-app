@@ -58,8 +58,8 @@ const initialState = {
   orgToken: [],
 }
 
-const NewRequest = React.memo(({ panelOpened, acceptedTokens, onRequest, connectedAccount }) => {
-  const { orgTokens, nftList } = useAppState()
+const NewRequest = React.memo(({ panelOpened, acceptedTokens, onRequest, connectedAccount, selectedNFT, nftPrice }) => {
+  const { orgTokens, nftTokens } = useAppState()
   const network = useNetwork()
   const api = useApi()
   const requestTokenId = 0
@@ -73,7 +73,6 @@ const NewRequest = React.memo(({ panelOpened, acceptedTokens, onRequest, connect
   const [depositErrorMessage, setDepositErrorMessage] = useState(initialState.depositErrorMessage)
   const [submitButtonDisabled, setSubmitButtonDisabled] = useState(initialState.submitButtonDisabled)
   const [isTokenSelected, setIsTokenSelected] = useState(initialState.isTokenSelected)
-  const [isNFTSelected, setIsNFTSelected] = useState(initialState.isNFTSelected)
   const [orgToken, setOrgToken] = useState(initialState.orgToken)
 
   useEffect(() => {
@@ -94,11 +93,11 @@ const NewRequest = React.memo(({ panelOpened, acceptedTokens, onRequest, connect
         setSelectedOrgToken({
           ...initialState.selectedOrgToken,
           index: 0,
-          value: orgTokens[0].address,
+          value: selectedNFT ? selectedNFT.address : orgTokens[0].address,
         })
       }
     }
-  }, [orgTokens])
+  }, [orgTokens, selectedNFT])
 
   useEffect(() => {
     async function getTokenData() {
@@ -114,21 +113,19 @@ const NewRequest = React.memo(({ panelOpened, acceptedTokens, onRequest, connect
       getTokenData()
       const ethSelected =
         isAddress(selectedToken.value) && addressesEqual(selectedToken.value, ETHER_TOKEN_FAKE_ADDRESS)
-      const nftSelected = isAddress(orgToken.value) && nftList.includes(orgToken.value)
-      setIsNFTSelected(nftSelected)
-      const tokenSelected = selectedToken.value && !ethSelected && !nftSelected
+      const tokenSelected = selectedToken.value && !ethSelected && !selectedNFT
       setIsTokenSelected(tokenSelected)
     }
-  }, [selectedToken.index, selectedOrgToken.index, nftList])
+  }, [selectedToken.index, selectedOrgToken.index, nftTokens])
 
   useEffect(() => {
     if (!panelOpened) {
       if (acceptedTokens.length > 0) {
-        setSelectedToken(token => ({
+        setSelectedToken((token) => ({
           ...initialState.selectedToken,
           data: { ...token.data },
           index: 0,
-          value: acceptedTokens[0].address
+          value: acceptedTokens[0].address,
         }))
       }
       setDepositedAmount({ ...initialState.amount })
@@ -139,6 +136,8 @@ const NewRequest = React.memo(({ panelOpened, acceptedTokens, onRequest, connect
 
   useEffect(() => {
     let tokens = []
+    // NFT are considered orgTokens
+    orgTokens = [...orgTokens, ...nftTokens]
     for (let token of orgTokens) {
       if (
         orgTokens &&
@@ -164,7 +163,7 @@ const NewRequest = React.memo(({ panelOpened, acceptedTokens, onRequest, connect
     setSubmitButtonDisabled(disabled)
   }, [depositedAmount, selectedToken])
 
-  const renderBalanceForSelectedToken = selectedToken => {
+  const renderBalanceForSelectedToken = (selectedToken) => {
     const { decimals, loading, symbol, userBalance } = selectedToken
 
     if (loading || !userBalance) {
@@ -180,8 +179,7 @@ const NewRequest = React.memo(({ panelOpened, acceptedTokens, onRequest, connect
       e.preventDefault()
       const depositAmount = toDecimals(depositedAmount.value, selectedToken.data.decimals)
       // hard coded need to get tokenId from smart contract or somewhere
-      // const tokenId = isNFTSelected ? 0 : null;
-      const requestTokenId = 0
+      const requestTokenId = selectedNFT ? selectedNFT.tokenId : 0
       const requested = toDecimals(requestedAmount, Number(selectedOrgToken.data.decimals))
       onRequest(selectedToken.value, depositAmount, selectedOrgToken.value, requested, requestTokenId, reference)
     },
@@ -218,10 +216,10 @@ const NewRequest = React.memo(({ panelOpened, acceptedTokens, onRequest, connect
     if (!tokenIsAddress) {
       return
     }
-      setSelectedOrgToken(token)
+    setSelectedToken(token)
   })
 
-  const handleSelectedOrgToken = useCallback(({ address, index, value }) => {
+  const handleSelectedOrgToken = useCallback(({ address, index, value, tokenId }) => {
     const tokenIsAddress = isAddress(address)
     const token = {
       index,
@@ -232,6 +230,11 @@ const NewRequest = React.memo(({ panelOpened, acceptedTokens, onRequest, connect
     if (!tokenIsAddress) {
       return
     }
+    if (tokenId) {
+      const nftToken = nftTokens.find((token) => token.address === address && token.tokenId == tokenId)
+      selectNFT(nftToken)
+    }
+
     setSelectedOrgToken(token)
   })
 
@@ -329,7 +332,7 @@ const NewRequest = React.memo(({ panelOpened, acceptedTokens, onRequest, connect
             value={requestedAmount}
             onChange={handleRequestedAmountUpdate}
             min={0}
-            max={isNFTSelected ? 1 : null}
+            max={selectedNFT ? 1 : null}
             step="any"
             required
             wide
@@ -339,17 +342,18 @@ const NewRequest = React.memo(({ panelOpened, acceptedTokens, onRequest, connect
             onChange={handleSelectedOrgToken}
             tokens={orgTokens}
             disabled={orgTokens.length === 1}
+            selectedNFT={selectedNFT}
           />
         </CombinedInput>
       </Field>
 
-      <Field label='Offered amount' required>
+      <Field label="Offered amount" required>
         <CombinedInput>
           <TextInput.Number
             value={depositedAmount.value}
             onChange={handleAmountUpdate}
             min={0}
-            step='any'
+            step="any"
             required
             wide
           />
@@ -362,15 +366,15 @@ const NewRequest = React.memo(({ panelOpened, acceptedTokens, onRequest, connect
         </CombinedInput>
       </Field>
       <TokenBalance>
-        <Text size='small' color={theme.textSecondary}>
+        <Text size="small" color={theme.textSecondary}>
           {tokenBalanceMessage}
         </Text>
       </TokenBalance>
-      <Field label='Reference (optional)'>
+      <Field label="Reference (optional)">
         <TextInput onChange={handleReferenceUpdate} value={reference} wide />
       </Field>
       <ButtonWrapper>
-        <Button wide mode='strong' type='submit' disabled={submitButtonDisabled}>
+        <Button wide mode="strong" type="submit" disabled={submitButtonDisabled}>
           Create request
         </Button>
       </ButtonWrapper>
@@ -396,7 +400,7 @@ const NewRequest = React.memo(({ panelOpened, acceptedTokens, onRequest, connect
               `}
             >
               Tokens may require a pretransaction to approve the Token request app for your deposit.{' '}
-              <Link href={TOKEN_ALLOWANCE_WEBSITE} target='_blank'>
+              <Link href={TOKEN_ALLOWANCE_WEBSITE} target="_blank">
                 Find out why.
               </Link>{' '}
             </p>
@@ -427,7 +431,7 @@ const TokenBalance = styled.div`
 `
 
 const VSpace = styled.div`
-  height: ${p => (p.size || 1) * 5}px;
+  height: ${(p) => (p.size || 1) * 5}px;
 `
 
 const ValidationError = ({ message }) => {
@@ -442,7 +446,7 @@ const ValidationError = ({ message }) => {
         `}
       >
         <IconCross
-          size='tiny'
+          size="tiny"
           css={`
             color: ${theme.negative};
             margin-right: ${1 * GU}px;
@@ -460,7 +464,7 @@ const ValidationError = ({ message }) => {
   )
 }
 
-export default props => {
+export default (props) => {
   const { api, connectedAccount, network } = useAragonApi()
   return network && api ? (
     <NewRequest api={api} connectedAccount={connectedAccount} network={network} {...props} />

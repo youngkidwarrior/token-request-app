@@ -10,26 +10,26 @@ import { addressesEqual } from '../lib/web3-utils'
 
 const PAGINATION = 10
 
-const RequestTable = React.memo(({ requests, token, onSubmit, onWithdraw, ownRequests, onSelectRequest }) => {
+const RequestTable = React.memo(({ requests, tokens, onSubmit, onWithdraw, ownRequests, onSelectRequest }) => {
   const connectedAccount = useConnectedAccount()
   const theme = useTheme()
 
   const handleSelectRequest = useCallback(
-    requestId => {
+    (requestId) => {
       onSelectRequest(requestId)
     },
     [onSelectRequest]
   )
 
   const handleSubmit = useCallback(
-    requestId => {
+    (requestId) => {
       onSubmit(requestId)
     },
     [onSubmit]
   )
 
   const handleWithdraw = useCallback(
-    requestId => {
+    (requestId) => {
       onWithdraw(requestId)
     },
     [onWithdraw]
@@ -93,7 +93,7 @@ const RequestTable = React.memo(({ requests, token, onSubmit, onWithdraw, ownReq
       : [timeColumn, ...commonColumns]
   }
 
-  const getActions = request => {
+  const getActions = (request) => {
     const requestId = request[0]
     const status = request[9]
     return (
@@ -102,14 +102,14 @@ const RequestTable = React.memo(({ requests, token, onSubmit, onWithdraw, ownReq
           <IconWrapper theme={theme}>
             <IconInfo />
           </IconWrapper>
-          <div css='margin-left: 15px'>Info</div>
+          <div css="margin-left: 15px">Info</div>
         </ContextMenuItem>
         {status === requestStatus.PENDING && (
           <ContextMenuItem onClick={() => handleSubmit(requestId)}>
             <IconWrapper theme={theme}>
               <IconVote />
             </IconWrapper>
-            <div css='margin-left: 15px'>Submit</div>
+            <div css="margin-left: 15px">Submit</div>
           </ContextMenuItem>
         )}
         {status === requestStatus.PENDING && (
@@ -117,7 +117,7 @@ const RequestTable = React.memo(({ requests, token, onSubmit, onWithdraw, ownReq
             <IconWrapper theme={theme}>
               <IconCoin />
             </IconWrapper>
-            <div css='margin-left: 15px'>Withdraw</div>
+            <div css="margin-left: 15px">Withdraw</div>
           </ContextMenuItem>
         )}
       </ContextMenu>
@@ -130,9 +130,9 @@ const RequestTable = React.memo(({ requests, token, onSubmit, onWithdraw, ownReq
         <DataView
           fields={fields}
           entries={getEntries}
-          renderEntry={request => getRow(...request)}
-          renderEntryActions={request => getActions(request)}
-          mode='adaptive'
+          renderEntry={(request) => getRow(...request)}
+          renderEntryActions={(request) => getActions(request)}
+          mode="adaptive"
           entriesPerPage={PAGINATION}
         />
       )}

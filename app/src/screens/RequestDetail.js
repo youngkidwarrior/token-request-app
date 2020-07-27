@@ -27,7 +27,7 @@ import { formatTokenAmountSymbol } from '../lib/token-utils'
 import { formatTokenAmount } from '../lib/math-utils'
 import { format } from 'date-fns'
 
-const RequestDetail = ({ request, tokens, onBack, onSubmit, onWithdraw }) => {
+const RequestDetail = ({ nftTokens, request, tokens, onBack, onSubmit, onWithdraw }) => {
   const { layoutName } = useLayout()
   const theme = useTheme()
   const connectedAccount = useConnectedAccount()
@@ -50,18 +50,18 @@ const RequestDetail = ({ request, tokens, onBack, onSubmit, onWithdraw }) => {
   const requestFormated = formatTokenAmount(requestAmount, false, token.decimals, token.decimals)
   const requestRounded = formatTokenAmountSymbol(token.symbol, requestAmount, token.decimals)
   const title = `#${requestId} - ${requestRounded} requested by`
-  const formatDate = date => `${format(date, 'do MMM yy, HH:mm')} UTC`
+  const formatDate = (date) => `${format(date, 'do MMM yy, HH:mm')} UTC`
   const statusColor = getStatusColor(status, theme).toString()
 
   const handleWithdraw = useCallback(
-    requestId => {
+    (requestId) => {
       onWithdraw(requestId)
     },
     [onWithdraw]
   )
 
   const handleSubmit = useCallback(
-    requestId => {
+    (requestId) => {
       onSubmit(requestId)
     },
     [onSubmit]
@@ -216,7 +216,7 @@ const RequestDetail = ({ request, tokens, onBack, onSubmit, onWithdraw }) => {
         }
         secondary={
           <React.Fragment>
-            <Box heading='Request info'>
+            <Box heading="Request info">
               <Status color={statusColor}>{`${status}`}</Status>
               <div
                 css={`
@@ -232,7 +232,7 @@ const RequestDetail = ({ request, tokens, onBack, onSubmit, onWithdraw }) => {
                 {formatDate(date)}
               </div>
             </Box>
-            <Box heading='Requested Amount'>
+            <Box heading="Requested Amount">
               <div
                 css={`
                   display: relative;
@@ -258,7 +258,7 @@ const RequestDetail = ({ request, tokens, onBack, onSubmit, onWithdraw }) => {
                 </div>
               </div>
             </Box>
-            <Box heading='Offered Amount'>
+            <Box heading="Offered Amount">
               <div
                 css={`
                   display: relative;
@@ -319,13 +319,13 @@ const Buttons = ({
     <ButtonsContainer>
       <ActionButton
         requesterConnected={requesterConnected}
-        mode='positive'
+        mode="positive"
         wide
         disabled={disabled}
         onClick={onClickSubmit}
       >
         <IconCheck
-          size='small'
+          size="small"
           css={`
             margin-right: ${1 * GU}px;
           `}
@@ -333,9 +333,9 @@ const Buttons = ({
         Submit
       </ActionButton>
       {requesterConnected && (
-        <ActionButton mode='negative' wide disabled={disabled} onClick={onClickWithdraw}>
+        <ActionButton mode="negative" wide disabled={disabled} onClick={onClickWithdraw}>
           <IconCross
-            size='small'
+            size="small"
             css={`
               margin-right: ${1 * GU}px;
             `}
