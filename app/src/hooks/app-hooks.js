@@ -118,7 +118,6 @@ export function useAppLogic() {
     lastSoldBlock,
     totalSoldNFT,
   } = useAppState()
-  console.log('nftTokens: ', nftTokens);
   const [selectedRequest, selectRequest] = useSelectedRequest(requests)
   const panelState = useSidePanel()
   const actions = {

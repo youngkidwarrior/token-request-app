@@ -1,13 +1,12 @@
 import { hasLoadedtokenRequestSettings } from './lib/token-request-settings'
 import { compareDesc } from 'date-fns'
 
-async function appStateReducer(state) {
+function appStateReducer(state) {
   const ready = hasLoadedtokenRequestSettings(state)
   if (!ready) {
     return { ...state, ready }
   }
-  console.log('state: ', state);
-  const { requests = [], acceptedTokens = []} = state
+  const { requests = [], acceptedTokens = [], lastSoldBlock = 0, totalSoldNFT = 0 } = state
 
   return {
     ...state,
@@ -16,7 +15,9 @@ async function appStateReducer(state) {
     requests: requests.sort(({ date: dateLeft }, { date: dateRight }) =>
       // Sort by date descending
       compareDesc(dateLeft, dateRight)
-    )
+    ),
+    lastSoldBlock,
+    totalSoldNFT,
   }
 }
 

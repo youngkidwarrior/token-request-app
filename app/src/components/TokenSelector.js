@@ -33,6 +33,7 @@ class TokenSelector extends React.Component {
         address,
         index,
         value: address,
+        tokenId
       })
     })
   }

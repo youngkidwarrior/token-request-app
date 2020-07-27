@@ -30,7 +30,6 @@ const App = () => {
   const { appearance } = useGuiStyle()
   const [screenIndex, setScreenIndex] = useState(0)
   const [selectedNFT, setSelectedNFT] = useState({})
-  const [nftPrice, setNFTPrice] = useState(1)
   const handleBack = useCallback(() => selectRequest(-1), [selectRequest])
   const handleRequest = async (
     tokenAddress,
@@ -114,7 +113,6 @@ const App = () => {
                 lastSoldBlock={lastSoldBlock}
                 totalSoldNFT={totalSoldNFT}
                 selectNFT={setSelectedNFT}
-                setPrice={setNFTPrice}
               ></NFTGallery>
             ) : (
               <Requests
@@ -142,7 +140,6 @@ const App = () => {
           onRequest={handleRequest}
           selectNFT={setSelectedNFT}
           selectedNFT={selectedNFT}
-          nftPrice={nftPrice}
         ></NewRequest>
       </SidePanel>
     </Main>

@@ -4,6 +4,7 @@ import Aragon, { events } from '@aragon/api'
 import { first } from 'rxjs/operators'
 import tmAbi from './abi/tokenManager.json'
 import agentAbi from './abi/agent.json'
+import erc721Abi from './abi/erc721.json'
 import { requestStatus } from './lib/constants'
 import retryEvery from './lib/retry-every'
 import {
@@ -25,23 +26,25 @@ let agentOrVaultAddress = ''
 
 // Get the agent Or vault address to initialize ourselves
 
-retryEvery(
-  async () =>
-    (agentOrVaultAddress = await app
+retryEvery(async () => {
+  const [agentOrVaultAddress, tokenManagers] = await Promise.all([
+    app
       .call('agentOrVault')
       .toPromise()
       .catch((err) => {
         console.error('Could not start background script execution due to the contract not loading the vault:', err)
         throw err
-      }))
-)
-
-app.call('getTokenManagers').subscribe(
-  (tokenManagers) => initialize(tokenManagers, agentOrVaultAddress),
-  (err) => {
-    console.error(`Could not start background script execution due to the contract not loading token: ${err}`)
-  }
-)
+      }),
+    app
+      .call('getTokenManagers')
+      .toPromise()
+      .catch((err) => {
+        console.error(`Could not start background script execution due to the contract not loading token:`, err)
+        throw err
+      }),
+  ])
+  initialize(tokenManagers, agentOrVaultAddress)
+})
 
 async function initialize(tokenManagerAddresses, agentOrVaultAddress) {
   const agentOrVaultContract = app.external(agentOrVaultAddress, agentAbi)
@@ -63,10 +66,10 @@ async function initialize(tokenManagerAddresses, agentOrVaultAddress) {
       contract: agentOrVaultContract,
     },
   }
-  return createStore(tmContracts, nftTokens, tokens, settings)
+  return createStore(tmContracts, tokens, settings)
 }
 
-async function createStore(tokenManagerContracts, nftTokens, tokens, settings) {
+async function createStore(tokenManagerContracts, tokens, settings) {
   return app.store(
     (state, { event, returnValues, blockNumber }) => {
       let nextState = {
@@ -93,7 +96,7 @@ async function createStore(tokenManagerContracts, nftTokens, tokens, settings) {
       }
     },
     {
-      init: initializeState(tokenManagerContracts, nftTokens, tokens, settings),
+      init: initializeState(tokenManagerContracts, tokens, settings),
       externals: [
         {
           contract: settings.agentOrVault.contract,
@@ -109,7 +112,7 @@ async function createStore(tokenManagerContracts, nftTokens, tokens, settings) {
  *                     *
  ***********************/
 
-function initializeState(tokenManagerContracts, nftTokens, tokens, settings) {
+function initializeState(tokenManagerContracts, tokens, settings) {
   return async (cachedState) => {
     try {
       console.log('cachedState: ', cachedState)
@@ -131,7 +134,7 @@ function initializeState(tokenManagerContracts, nftTokens, tokens, settings) {
         isSyncing: true,
         orgTokens,
         acceptedTokens,
-        nftTokens:[]
+        nftTokens: [],
       }
     } catch (error) {
       console.error('Error initializing state: ', error)
@@ -145,15 +148,6 @@ const getAcceptedTokens = async (tokens, settings) => {
     .map((tokenAddress) => getTokenData(tokenAddress, settings))
   return Promise.all(promises)
 }
-
-// const getNFTTokens = async (agentContract) => {
-//   const nftAddressesLength = await agentContract.getNFTTokensLength().toPromise()
-//   console.log('nftAddressesLength: ', nftAddressesLength)
-//   // for (let i = 0; i < nftAddressesLength; i++) {
-//   //   console.log('agentContract: ', await agentContract.nftTokens(i).toPromise())
-//   // }
-//   return nftAddressesLength
-// }
 
 async function updateConnectedAccount(state, { account }) {
   return {
@@ -246,8 +240,10 @@ async function requestFinalised(state, { requestId }) {
 
 async function nftReceived(state, { token, tokenId }, settings) {
   const { nftTokens } = state
+  const nftContract = app.external(token, erc721Abi)
+  const uri = await nftContract.tokenURI(tokenId).toPromise()
   const { name, symbol } = getTokenData(token, settings)
-  nftTokens = [...nftTokens, { address: token, tokenId, name, symbol }]
+  nftTokens = [...nftTokens, { address: token, tokenId, name, symbol, uri }]
   return {
     ...state,
     nftTokens,

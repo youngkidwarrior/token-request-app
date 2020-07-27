@@ -58,7 +58,7 @@ const initialState = {
   orgToken: [],
 }
 
-const NewRequest = React.memo(({ panelOpened, acceptedTokens, onRequest, connectedAccount, selectedNFT, nftPrice }) => {
+const NewRequest = React.memo(({ panelOpened, acceptedTokens, onRequest, connectedAccount, selectedNFT, selectNFT }) => {
   const { orgTokens, nftTokens } = useAppState()
   const network = useNetwork()
   const api = useApi()
@@ -74,6 +74,11 @@ const NewRequest = React.memo(({ panelOpened, acceptedTokens, onRequest, connect
   const [submitButtonDisabled, setSubmitButtonDisabled] = useState(initialState.submitButtonDisabled)
   const [isTokenSelected, setIsTokenSelected] = useState(initialState.isTokenSelected)
   const [orgToken, setOrgToken] = useState(initialState.orgToken)
+  const [combinedOrgTokens, setCombinedOrgToken] = useState([])
+
+  useEffect(() => {
+    setCombinedOrgToken([...orgTokens, ...nftTokens])
+  }, [orgTokens, nftTokens])
 
   useEffect(() => {
     if (acceptedTokens && acceptedTokens.length > 0) {
@@ -88,16 +93,23 @@ const NewRequest = React.memo(({ panelOpened, acceptedTokens, onRequest, connect
   }, [acceptedTokens])
 
   useEffect(() => {
-    if (orgTokens && orgTokens.length > 0) {
+    if (combinedOrgTokens && combinedOrgTokens.length > 0) {
       if (selectedOrgToken.index === -1) {
+        const index = selectedNFT.address
+          ? combinedOrgTokens.findIndex(
+              (token) => token.address === selectedNFT.address && token.tokenId === selectedNFT.tokenId
+            )
+          : 0
+        const value = selectedNFT.address ? selectedNFT.address : combinedOrgTokens[0].address
+        
         setSelectedOrgToken({
           ...initialState.selectedOrgToken,
-          index: 0,
-          value: selectedNFT ? selectedNFT.address : orgTokens[0].address,
+          index,
+          value,
         })
       }
     }
-  }, [orgTokens, selectedNFT])
+  }, [combinedOrgTokens, selectedNFT])
 
   useEffect(() => {
     async function getTokenData() {
@@ -113,10 +125,10 @@ const NewRequest = React.memo(({ panelOpened, acceptedTokens, onRequest, connect
       getTokenData()
       const ethSelected =
         isAddress(selectedToken.value) && addressesEqual(selectedToken.value, ETHER_TOKEN_FAKE_ADDRESS)
-      const tokenSelected = selectedToken.value && !ethSelected && !selectedNFT
+      const tokenSelected = selectedToken.value && !ethSelected && !selectedNFT.address
       setIsTokenSelected(tokenSelected)
     }
-  }, [selectedToken.index, selectedOrgToken.index, nftTokens])
+  }, [selectedToken.index, selectedOrgToken.index, combinedOrgTokens])
 
   useEffect(() => {
     if (!panelOpened) {
@@ -136,11 +148,10 @@ const NewRequest = React.memo(({ panelOpened, acceptedTokens, onRequest, connect
 
   useEffect(() => {
     let tokens = []
-    // NFT are considered orgTokens
-    orgTokens = [...orgTokens, ...nftTokens]
-    for (let token of orgTokens) {
+
+    for (let token of combinedOrgTokens) {
       if (
-        orgTokens &&
+        combinedOrgTokens &&
         !orgToken.find((element) => {
           return element.address === token.address
         })
@@ -149,7 +160,7 @@ const NewRequest = React.memo(({ panelOpened, acceptedTokens, onRequest, connect
       }
     }
     setOrgToken(tokens)
-  }, [orgTokens])
+  }, [combinedOrgTokens])
 
   useEffect(() => {
     let errorMessage
@@ -179,7 +190,7 @@ const NewRequest = React.memo(({ panelOpened, acceptedTokens, onRequest, connect
       e.preventDefault()
       const depositAmount = toDecimals(depositedAmount.value, selectedToken.data.decimals)
       // hard coded need to get tokenId from smart contract or somewhere
-      const requestTokenId = selectedNFT ? selectedNFT.tokenId : 0
+      const requestTokenId = selectedNFT.address ? selectedNFT.tokenId : 0
       const requested = toDecimals(requestedAmount, Number(selectedOrgToken.data.decimals))
       onRequest(selectedToken.value, depositAmount, selectedOrgToken.value, requested, requestTokenId, reference)
     },
@@ -332,17 +343,16 @@ const NewRequest = React.memo(({ panelOpened, acceptedTokens, onRequest, connect
             value={requestedAmount}
             onChange={handleRequestedAmountUpdate}
             min={0}
-            max={selectedNFT ? 1 : null}
+            max={selectedNFT.address ? 1 : null}
             step="any"
             required
             wide
           />
           <TokenSelector
-            activeIndex={orgTokens.length === 1 ? 0 : selectedOrgToken.index}
+            activeIndex={combinedOrgTokens.length === 1 ? 0 : selectedOrgToken.index}
             onChange={handleSelectedOrgToken}
-            tokens={orgTokens}
-            disabled={orgTokens.length === 1}
-            selectedNFT={selectedNFT}
+            tokens={combinedOrgTokens}
+            disabled={combinedOrgTokens.length === 1}
           />
         </CombinedInput>
       </Field>

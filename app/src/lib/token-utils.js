@@ -99,7 +99,7 @@ export const formatTokenAmountSymbol = (symbol, amount, decimals) => {
 
 export const evaluateNFTPrice = (baseNFTValue, blockNumber, lastSoldBlock, totalSoldNFT) => {
   const maxValue = baseNFTValue * 2 ** totalSoldNFT
-  const timeDepreciation = maxValue * 0.1 * (blockNumber - lastSoldBlock)
+  const timeDepreciation = maxValue * 0.01 * (1000 % (blockNumber - lastSoldBlock))
   const evaluatedPrice = maxValue - timeDepreciation
-  return { evaluatedPrice, timeDepreciation }
+  return [evaluatedPrice, timeDepreciation]
 }

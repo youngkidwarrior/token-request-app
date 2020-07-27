@@ -7,6 +7,7 @@ import { addressesEqual, shortenAddress } from '../lib/web3-utils'
 class TokenSelectorInstance extends React.PureComponent {
   render() {
     const { symbol, showIcon = true } = this.props
+
     return (
       <Main>
         {showIcon ? <Icon src={`https://chasing-coins.com/coin/logo/${symbol}`} /> : <IconSpacer />}
