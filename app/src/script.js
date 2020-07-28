@@ -188,8 +188,7 @@ async function incrementTicker(state, { blockNumber }) {
   let { nftTokens, lastSoldBlock, blockTicker } = state;
   blockTicker =
     nftTokens && blockNumber != lastSoldBlock ? blockTicker + 1 : blockTicker;
-
-  return { blockTicker, ...state };
+  return { ...state, blockTicker };
 }
 
 async function newTokenRequest(

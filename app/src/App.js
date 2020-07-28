@@ -43,7 +43,7 @@ const App = () => {
         blockNumber && api.emitTrigger('IncrementTicker', { blockNumber})
         setPreviousBlock(blockNumber)
       })
-  }, [api,previousBlock])
+  }, [api,previousBlock,blockTicker])
 
   const handleRequest = async (
     tokenAddress,
