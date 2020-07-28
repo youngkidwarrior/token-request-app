@@ -104,7 +104,7 @@ const NFTGallery = React.memo(({ nftTokens, lastSoldBlock, totalSoldNFT, selectN
                     `}
                     onClick={(e) => e.stopPropagation()}
                   >
-                    <ContextMenu zIndex={1}>
+                    <ContextMenu zIndex={100}>
                       <ContextMenuItem
                         onClick={({ event }) => event.stopPropagation()}
                         href={'http://etherscan.io/token/' + token.address}

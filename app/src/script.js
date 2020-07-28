@@ -185,7 +185,7 @@ async function updateConnectedAccount(state, { account }) {
 }
 
 async function incrementTicker(state, { blockNumber }) {
-  const { nftTokens, lastSoldBlock, blockTicker } = state;
+  let { nftTokens, lastSoldBlock, blockTicker } = state;
   blockTicker =
     nftTokens && blockNumber != lastSoldBlock ? blockTicker + 1 : blockTicker;
 

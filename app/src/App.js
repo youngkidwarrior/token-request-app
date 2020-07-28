@@ -34,6 +34,7 @@ const App = () => {
   const [selectedNFT, setSelectedNFT] = useState({})
   const [previousBlock, setPreviousBlock] = useState(lastSoldBlock)
   const handleBack = useCallback(() => selectRequest(-1), [selectRequest])
+
   useEffect(() => {
     // Update each block to count discount NFT
     api &&
@@ -42,7 +43,8 @@ const App = () => {
         blockNumber && api.emitTrigger('IncrementTicker', { blockNumber})
         setPreviousBlock(blockNumber)
       })
-  }, [api])
+  }, [api,previousBlock])
+
   const handleRequest = async (
     tokenAddress,
     depositAmount,
