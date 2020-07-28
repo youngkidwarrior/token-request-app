@@ -24,9 +24,7 @@ const DEPRECIATE_BLOCK_INTERVAL = 10000
 const NFTGallery = React.memo(({ nftTokens, lastSoldBlock, totalSoldNFT, selectNFT, openPanel, blockTicker }) => {
   const [nextPriceDepreciation, setNextPriceDepreciation] = useState(0)
   const [nftPrice, setNFTPrice] = useState(BASE_NFT_VALUE)
-  const [selected, setSelected] = useState(0)
   const api = useApi()
-  const state = useAppState()
   const network = useNetwork()
   const theme = useTheme()
 
@@ -52,7 +50,7 @@ const NFTGallery = React.memo(({ nftTokens, lastSoldBlock, totalSoldNFT, selectN
       <Split
         invert={'horizontal'}
         primary={
-          !nftTokens ? (
+          nftTokens ? (
             <CardLayout
               css={`
                 margin-top: 1rem;
@@ -165,12 +163,12 @@ const NFTGallery = React.memo(({ nftTokens, lastSoldBlock, totalSoldNFT, selectN
                   `}
                 >
                   <span>Blocks Till Discount</span>
-                  <span>{!nftTokens ? nextPriceDepreciation + ' blocks' : 'N/A'}</span>
+                  <span>{nftTokens ? nextPriceDepreciation : 'N/A'}</span>
                 </li>
               </ul>
             </Box>
             <Box heading="Tokens">
-              {!nftTokens ? (
+              {nftTokens ? (
                 <ul>
                   {nftTokens.map((token, index) => (
                     <li

@@ -1,27 +1,27 @@
-import 'core-js/stable'
-import 'regenerator-runtime/runtime'
-import Aragon, { events } from '@aragon/api'
-import { first } from 'rxjs/operators'
-import tmAbi from './abi/tokenManager.json'
-import agentAbi from './abi/agent.json'
-import erc721Abi from './abi/erc721.json'
-import { requestStatus } from './lib/constants'
-import retryEvery from './lib/retry-every'
+import 'core-js/stable';
+import 'regenerator-runtime/runtime';
+import Aragon, { events } from '@aragon/api';
+import { first } from 'rxjs/operators';
+import tmAbi from './abi/tokenManager.json';
+import agentAbi from './abi/agent.json';
+import erc721Abi from './abi/erc721.json';
+import { requestStatus } from './lib/constants';
+import retryEvery from './lib/retry-every';
 import {
   tokenDataFallback,
   getTokenSymbol,
   getTokenName,
   getTokenDecimals,
   ETHER_TOKEN_FAKE_ADDRESS,
-} from './lib/token-utils'
+} from './lib/token-utils';
 
-const app = new Aragon()
+const app = new Aragon();
 
 const ETHER_DATA = {
   decimals: 18,
   name: 'Ether',
   symbol: 'ETH',
-}
+};
 
 // Get the agent Or vault address to initialize ourselves
 retryEvery(async () => {
@@ -30,70 +30,80 @@ retryEvery(async () => {
       .call('agentOrVault')
       .toPromise()
       .catch((err) => {
-        console.error('Could not start background script execution due to the contract not loading the vault:', err)
-        throw err
+        console.error(
+          'Could not start background script execution due to the contract not loading the vault:',
+          err
+        );
+        throw err;
       }),
     app
       .call('getTokenManagers')
       .toPromise()
       .catch((err) => {
-        console.error(`Could not start background script execution due to the contract not loading token:`, err)
-        throw err
+        console.error(
+          `Could not start background script execution due to the contract not loading token:`,
+          err
+        );
+        throw err;
       }),
-  ])
-  initialize(tokenManagers, agentOrVaultAddress)
-})
+  ]);
+  initialize(tokenManagers, agentOrVaultAddress);
+});
 
 async function initialize(tokenManagerAddresses, agentOrVaultAddress) {
-  const agentOrVaultContract = app.external(agentOrVaultAddress, agentAbi)
-  
+  const agentOrVaultContract = app.external(agentOrVaultAddress, agentAbi);
+
   const network = await app
     .network()
     .pipe(first())
-    .toPromise()
+    .toPromise();
 
-  let tokens = []
-  let tmContracts = []
+  let tokens = [];
+  let tmContracts = [];
   for (let tokenManagerAddress of tokenManagerAddresses) {
-    tmContracts.push(app.external(tokenManagerAddress, tmAbi))
+    tmContracts.push(app.external(tokenManagerAddress, tmAbi));
   }
-  tokens = await app.call('getAcceptedDepositTokens').toPromise()
+  tokens = await app.call('getAcceptedDepositTokens').toPromise();
   const settings = {
     network,
     agentOrVault: {
       address: agentOrVaultAddress,
       contract: agentOrVaultContract,
     },
-  }
-  return createStore(tmContracts, tokens, settings)
+  };
+  return createStore(tmContracts, tokens, settings);
 }
 
 async function createStore(tokenManagerContracts, tokens, settings) {
   return app.store(
     (state, { event, returnValues, blockNumber }) => {
-      
       let nextState = {
         ...state,
-      }
+      };
       switch (event) {
         case events.ACCOUNTS_TRIGGER:
-          return updateConnectedAccount(nextState, returnValues)
+          return updateConnectedAccount(nextState, returnValues);
         case events.SYNC_STATUS_SYNCING:
-          return { ...nextState, isSyncing: true }
+          return { ...nextState, isSyncing: true };
         case events.SYNC_STATUS_SYNCED:
-          return { ...nextState, isSyncing: false }
+          return { ...nextState, isSyncing: false };
         case 'TokenRequestCreated':
-          return newTokenRequest(nextState, returnValues, settings, blockNumber)
+          return newTokenRequest(
+            nextState,
+            returnValues,
+            settings,
+            blockNumber
+          );
         case 'TokenRequestRefunded':
-          return requestRefunded(nextState, returnValues)
+          return requestRefunded(nextState, returnValues);
         case 'TokenRequestFinalised':
-          return requestFinalised(nextState, returnValues)
+          return requestFinalised(nextState, returnValues);
         case 'ReceiveERC721':
-          return receiveNFT(nextState, returnValues, settings)
+          return receiveNFT(nextState, returnValues, settings);
         case 'IncrementTicker':
-          return incrementTicker(nextState, returnValues)
+          return incrementTicker(nextState, returnValues);
         default:
-          return state
+          return state;
       }
     },
     {
@@ -104,7 +114,7 @@ async function createStore(tokenManagerContracts, tokens, settings) {
         },
       ],
     }
-  )
+  );
 }
 
 /***********************
@@ -116,70 +126,109 @@ async function createStore(tokenManagerContracts, tokens, settings) {
 function initializeState(tokenManagerContracts, tokens, settings) {
   return async (cachedState) => {
     try {
-      const orgTokens = []
-      const lastSoldBlock = await app.web3Eth('getBlockNumber').toPromise()
+      const orgTokens = [];
+      const lastSoldBlock = await app.web3Eth('getBlockNumber').toPromise();
       for (let tokenManagerContract of tokenManagerContracts) {
-        const minimeAddress = await tokenManagerContract.token().toPromise()
-        const token = await getTokenData(minimeAddress, settings)
-        token && app.indentify(`token-request ${token.symbol}`)
-        orgTokens.push(token)
+        const minimeAddress = await tokenManagerContract.token().toPromise();
+        const token = await getTokenData(minimeAddress, settings);
+        token && app.indentify(`token-request ${token.symbol}`);
+        orgTokens.push(token);
       }
-      const acceptedTokens = await getAcceptedTokens(tokens, settings)
+      const acceptedTokens = await getAcceptedTokens(tokens, settings);
       tokens.includes(ETHER_TOKEN_FAKE_ADDRESS) &&
         acceptedTokens.unshift({
           ...ETHER_DATA,
           address: ETHER_TOKEN_FAKE_ADDRESS,
-        })
+        });
       return {
         ...cachedState,
         isSyncing: true,
         orgTokens,
         acceptedTokens,
-        nftTokens: [],
+        nftTokens: [
+          {
+            address: '0x29D7d1dd5B6f9C864d9db560D72a247c178aE86B',
+            tokenId: 0,
+            symbol: 'DUM',
+            name: 'DO NOT SEND 1',
+            uri: 'https://i.imgur.com/0MkDli1.jpeg',
+          },
+          {
+            address: '0x29D7d1dd5B6f9C864d9db560D72a247c178aE86B',
+            tokenId: 1,
+            symbol: 'DUM2',
+            name: 'DO NOT SEND 2',
+            uri: 'https://i.imgur.com/0MkDli1.jpeg',
+          },
+        ],
         lastSoldBlock,
         blockTicker: 0,
-      }
+      };
     } catch (error) {
-      console.error('Error initializing state: ', error)
+      console.error('Error initializing state: ', error);
     }
-  }
+  };
 }
 
 const getAcceptedTokens = async (tokens, settings) => {
   const promises = tokens
     .filter((token) => token != ETHER_TOKEN_FAKE_ADDRESS)
-    .map((tokenAddress) => getTokenData(tokenAddress, settings))
-  return Promise.all(promises)
-}
+    .map((tokenAddress) => getTokenData(tokenAddress, settings));
+  return Promise.all(promises);
+};
 
 async function updateConnectedAccount(state, { account }) {
   return {
     ...state,
     account,
-  }
+  };
 }
 
 async function incrementTicker(state, { blockNumber }) {
-  const { nftTokens, lastSoldBlock, blockTicker } = state
-  blockTicker = nftTokens && blockNumber != lastSoldBlock ? blockTicker + 1 : blockTicker
+  const { nftTokens, lastSoldBlock, blockTicker } = state;
+  blockTicker =
+    nftTokens && blockNumber != lastSoldBlock ? blockTicker + 1 : blockTicker;
 
-  return { blockTicker, ...state }
+  return { blockTicker, ...state };
 }
 
 async function newTokenRequest(
   state,
-  { requestId, requesterAddress, depositToken, depositAmount, requestToken, requestAmount, requestTokenId, reference },
+  {
+    requestId,
+    requesterAddress,
+    depositToken,
+    depositAmount,
+    requestToken,
+    requestAmount,
+    requestTokenId,
+    reference,
+  },
   settings,
   blockNumber
 ) {
   try {
-    const { requests = [], nftTokens } = state
-    const { decimals: depositDecimals, name: depositName, symbol: depositSymbol } =
-      depositToken === ETHER_TOKEN_FAKE_ADDRESS ? ETHER_DATA : await getTokenData(depositToken, settings)
-    const { decimals: requestDecimals, name: requestName, symbol: requestSymbol } =
-      requestToken === ETHER_TOKEN_FAKE_ADDRESS ? ETHER_DATA : await getTokenData(requestToken, settings)
+    const { requests = [], nftTokens } = state;
+    const {
+      decimals: depositDecimals,
+      name: depositName,
+      symbol: depositSymbol,
+    } =
+      depositToken === ETHER_TOKEN_FAKE_ADDRESS
+        ? ETHER_DATA
+        : await getTokenData(depositToken, settings);
+    const {
+      decimals: requestDecimals,
+      name: requestName,
+      symbol: requestSymbol,
+    } =
+      requestToken === ETHER_TOKEN_FAKE_ADDRESS
+        ? ETHER_DATA
+        : await getTokenData(requestToken, settings);
 
-    const { timestamp } = await app.web3Eth('getBlock', blockNumber).toPromise()
+    const { timestamp } = await app
+      .web3Eth('getBlock', blockNumber)
+      .toPromise();
 
     return {
       ...state,
@@ -205,36 +254,42 @@ async function newTokenRequest(
           date: marshallDate(timestamp),
         },
       ],
-    }
+    };
   } catch (err) {
-    console.log(err)
+    console.log(err);
   }
 }
 
 async function requestRefunded(state, { requestId }) {
-  const { requests, nftTokens, selectedRequest } = state
-  const tokenAddress = selectedRequest.requestTokenAddress
-  const nftSelected = nftTokens.some((nft) => nft.address == tokenAddress)
+  const { requests, nftTokens, selectedRequest } = state;
+  const tokenAddress = selectedRequest.requestTokenAddress;
+  const nftSelected = nftTokens.some((nft) => nft.address == tokenAddress);
   if (nftSelected) {
-    nftTokens = [...nftTokens, tokenAddress]
+    nftTokens = [...nftTokens, tokenAddress];
   }
   return {
     ...state,
     nftTokens,
     requests: await updateRequestStatus(requests, requestId, nextStatus),
-  }
+  };
 }
 async function requestFinalised(state, { requestId }) {
-  const { requests, nftTokens, selectedRequest, lastSoldBlock, totalSoldNFT } = state
-  const nextStatus = requestStatus.APPROVED
-  const tokenAddress = selectedRequest.requestTokenAddress
-  const nftSelected = nftTokens.some((nft) => nft.address == tokenAddress)
+  const {
+    requests,
+    nftTokens,
+    selectedRequest,
+    lastSoldBlock,
+    totalSoldNFT,
+  } = state;
+  const nextStatus = requestStatus.APPROVED;
+  const tokenAddress = selectedRequest.requestTokenAddress;
+  const nftSelected = nftTokens.some((nft) => nft.address == tokenAddress);
 
   if (nftSelected) {
-    lastSoldBlock = await app.web3Eth('getBlockNumber').toPromise()
-    blockTicker = 0
-    totalSoldNFT++
-    nftTokens = nftTokens.filter((nft) => nft.address !== requestToken)
+    lastSoldBlock = await app.web3Eth('getBlockNumber').toPromise();
+    blockTicker = 0;
+    totalSoldNFT++;
+    nftTokens = nftTokens.filter((nft) => nft.address !== requestToken);
   }
 
   return {
@@ -243,19 +298,19 @@ async function requestFinalised(state, { requestId }) {
     totalSoldNFT,
     nftTokens,
     requests: await updateRequestStatus(requests, requestId, nextStatus),
-  }
+  };
 }
 
 async function receiveNFT(state, { token, tokenId }, settings) {
-  const { nftTokens } = state
-  const nftContract = app.external(token, erc721Abi)
-  const uri = await nftContract.tokenURI(tokenId).toPromise()
-  const { name, symbol } = getTokenData(token, settings)
-  nftTokens = [...nftTokens, { address: token, tokenId, name, symbol, uri }]
+  const { nftTokens } = state;
+  const nftContract = app.external(token, erc721Abi);
+  const uri = await nftContract.tokenURI(tokenId).toPromise();
+  const { name, symbol } = getTokenData(token, settings);
+  nftTokens = [...nftTokens, { address: token, tokenId, name, symbol, uri }];
   return {
     ...state,
     nftTokens,
-  }
+  };
 }
 
 /***********************
@@ -269,70 +324,76 @@ async function getTokenData(tokenAddress, settings) {
     loadTokenDecimals(tokenAddress, settings),
     loadTokenName(tokenAddress, settings),
     loadTokenSymbol(tokenAddress, settings),
-  ])
+  ]);
   return {
     decimals,
     name,
     symbol,
     address: tokenAddress,
-  }
+  };
 }
 
 async function updateRequestStatus(requests, requestId, nextStatus) {
-  const requestIndex = requests.findIndex((request) => request.requestId === requestId)
+  const requestIndex = requests.findIndex(
+    (request) => request.requestId === requestId
+  );
 
   if (requestIndex !== -1) {
-    const nextRequests = Array.from(requests)
+    const nextRequests = Array.from(requests);
     nextRequests[requestIndex] = {
       ...nextRequests[requestIndex],
       status: nextStatus,
-    }
-    return nextRequests
+    };
+    return nextRequests;
   } else {
-    console.error(`Tried to update request #${requestId} that shouldn't exist!`)
+    console.error(
+      `Tried to update request #${requestId} that shouldn't exist!`
+    );
   }
 }
 
 async function loadTokenName(tokenAddress, { network }) {
-  const fallback = tokenDataFallback(tokenAddress, 'name', network.type) || ''
-  let name
+  const fallback = tokenDataFallback(tokenAddress, 'name', network.type) || '';
+  let name;
   try {
-    name = (await getTokenName(app, tokenAddress)) || fallback
+    name = (await getTokenName(app, tokenAddress)) || fallback;
   } catch (err) {
     // name is optional
-    name = fallback
+    name = fallback;
   }
-  return name
+  return name;
 }
 
 async function loadTokenSymbol(tokenAddress, { network }) {
-  const fallback = tokenDataFallback(tokenAddress, 'symbol', network.type) || ''
+  const fallback =
+    tokenDataFallback(tokenAddress, 'symbol', network.type) || '';
 
-  let symbol
+  let symbol;
   try {
-    symbol = (await getTokenSymbol(app, tokenAddress)) || fallback
+    symbol = (await getTokenSymbol(app, tokenAddress)) || fallback;
   } catch (err) {
     // symbol is optional
-    symbol = fallback
+    symbol = fallback;
   }
-  return symbol
+  return symbol;
 }
 
 async function loadTokenDecimals(tokenAddress, { network }) {
-  const fallback = tokenDataFallback(tokenAddress, 'decimals', network.type) || '0'
+  const fallback =
+    tokenDataFallback(tokenAddress, 'decimals', network.type) || '0';
 
-  let decimals
+  let decimals;
   try {
-    decimals = (await getTokenDecimals(app, tokenAddress)) || fallback
+    decimals = (await getTokenDecimals(app, tokenAddress)) || fallback;
   } catch (err) {
     // decimals is optional
-    decimals = fallback
+    decimals = fallback;
   }
-  return decimals
+  return decimals;
 }
 
 function marshallDate(date) {
   // Represent dates as real numbers, as it's very unlikely they'll hit the limit...
   // Adjust for js time (in ms vs s)
-  return parseInt(date, 10) * 1000
+  return parseInt(date, 10) * 1000;
 }
