@@ -22,10 +22,8 @@ const ETHER_DATA = {
   name: 'Ether',
   symbol: 'ETH',
 }
-let agentOrVaultAddress = ''
 
 // Get the agent Or vault address to initialize ourselves
-
 retryEvery(async () => {
   const [agentOrVaultAddress, tokenManagers] = await Promise.all([
     app
@@ -48,6 +46,7 @@ retryEvery(async () => {
 
 async function initialize(tokenManagerAddresses, agentOrVaultAddress) {
   const agentOrVaultContract = app.external(agentOrVaultAddress, agentAbi)
+  
   const network = await app
     .network()
     .pipe(first())
@@ -72,10 +71,10 @@ async function initialize(tokenManagerAddresses, agentOrVaultAddress) {
 async function createStore(tokenManagerContracts, tokens, settings) {
   return app.store(
     (state, { event, returnValues, blockNumber }) => {
+      
       let nextState = {
         ...state,
       }
-
       switch (event) {
         case events.ACCOUNTS_TRIGGER:
           return updateConnectedAccount(nextState, returnValues)
@@ -90,7 +89,9 @@ async function createStore(tokenManagerContracts, tokens, settings) {
         case 'TokenRequestFinalised':
           return requestFinalised(nextState, returnValues)
         case 'ReceiveERC721':
-          return nftReceived(nextState, returnValues, settings)
+          return receiveNFT(nextState, returnValues, settings)
+        case 'IncrementTicker':
+          return incrementTicker(nextState, returnValues)
         default:
           return state
       }
@@ -115,8 +116,8 @@ async function createStore(tokenManagerContracts, tokens, settings) {
 function initializeState(tokenManagerContracts, tokens, settings) {
   return async (cachedState) => {
     try {
-      console.log('cachedState: ', cachedState)
       const orgTokens = []
+      const lastSoldBlock = await app.web3Eth('getBlockNumber').toPromise()
       for (let tokenManagerContract of tokenManagerContracts) {
         const minimeAddress = await tokenManagerContract.token().toPromise()
         const token = await getTokenData(minimeAddress, settings)
@@ -135,6 +136,8 @@ function initializeState(tokenManagerContracts, tokens, settings) {
         orgTokens,
         acceptedTokens,
         nftTokens: [],
+        lastSoldBlock,
+        blockTicker: 0,
       }
     } catch (error) {
       console.error('Error initializing state: ', error)
@@ -156,6 +159,13 @@ async function updateConnectedAccount(state, { account }) {
   }
 }
 
+async function incrementTicker(state, { blockNumber }) {
+  const { nftTokens, lastSoldBlock, blockTicker } = state
+  blockTicker = nftTokens && blockNumber != lastSoldBlock ? blockTicker + 1 : blockTicker
+
+  return { blockTicker, ...state }
+}
+
 async function newTokenRequest(
   state,
   { requestId, requesterAddress, depositToken, depositAmount, requestToken, requestAmount, requestTokenId, reference },
@@ -169,17 +179,13 @@ async function newTokenRequest(
     const { decimals: requestDecimals, name: requestName, symbol: requestSymbol } =
       requestToken === ETHER_TOKEN_FAKE_ADDRESS ? ETHER_DATA : await getTokenData(requestToken, settings)
 
-    const nftSelected = nftTokens.some((nft) => nft.address == requestToken)
-    if (nftSelected) {
-      nftTokens = nftTokens.filter((nft) => nft.address !== requestToken)
-    }
     const { timestamp } = await app.web3Eth('getBlock', blockNumber).toPromise()
 
     return {
       ...state,
+      nftTokens,
       requests: [
         ...requests,
-        nftTokens,
         {
           requestId,
           requesterAddress,
@@ -219,14 +225,16 @@ async function requestRefunded(state, { requestId }) {
   }
 }
 async function requestFinalised(state, { requestId }) {
-  const { requests, nftTokens, selectedRequest, lastSoldBlock } = state
+  const { requests, nftTokens, selectedRequest, lastSoldBlock, totalSoldNFT } = state
   const nextStatus = requestStatus.APPROVED
   const tokenAddress = selectedRequest.requestTokenAddress
   const nftSelected = nftTokens.some((nft) => nft.address == tokenAddress)
 
   if (nftSelected) {
-    lastSoldBlock = await api.web3Eth('getBlockNumber').toPromise()
+    lastSoldBlock = await app.web3Eth('getBlockNumber').toPromise()
+    blockTicker = 0
     totalSoldNFT++
+    nftTokens = nftTokens.filter((nft) => nft.address !== requestToken)
   }
 
   return {
@@ -238,7 +246,7 @@ async function requestFinalised(state, { requestId }) {
   }
 }
 
-async function nftReceived(state, { token, tokenId }, settings) {
+async function receiveNFT(state, { token, tokenId }, settings) {
   const { nftTokens } = state
   const nftContract = app.external(token, erc721Abi)
   const uri = await nftContract.tokenURI(tokenId).toPromise()

@@ -14,8 +14,8 @@ import {
   Link,
   unselectable,
 } from '@aragon/ui'
-import { useAppState, useNetwork } from '@aragon/api-react'
-import { useAragonApi, useApi } from '@aragon/api-react'
+import { useAragonApi, useApi , useNetwork } from '@aragon/api-react'
+import { useAppLogic } from '../../hooks/app-hooks'
 import TokenSelector from '../TokenSelector'
 import { addressesEqual, isAddress } from '../../lib/web3-utils'
 import { fromDecimals, toDecimals } from '../../lib/math-utils'
@@ -59,7 +59,7 @@ const initialState = {
 }
 
 const NewRequest = React.memo(({ panelOpened, acceptedTokens, onRequest, connectedAccount, selectedNFT, selectNFT }) => {
-  const { orgTokens, nftTokens } = useAppState()
+  const { orgTokens, nftTokens } = useAppLogic()
   const network = useNetwork()
   const api = useApi()
   const requestTokenId = 0
@@ -77,7 +77,8 @@ const NewRequest = React.memo(({ panelOpened, acceptedTokens, onRequest, connect
   const [combinedOrgTokens, setCombinedOrgToken] = useState([])
 
   useEffect(() => {
-    setCombinedOrgToken([...orgTokens, ...nftTokens])
+    const combined = orgTokens.concat(nftTokens)
+    setCombinedOrgToken(combined)
   }, [orgTokens, nftTokens])
 
   useEffect(() => {

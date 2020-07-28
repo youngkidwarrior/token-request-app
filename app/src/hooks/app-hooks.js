@@ -117,6 +117,7 @@ export function useAppLogic() {
     nftTokens,
     lastSoldBlock,
     totalSoldNFT,
+    blockTicker,
   } = useAppState()
   const [selectedRequest, selectRequest] = useSelectedRequest(requests)
   const panelState = useSidePanel()
@@ -139,5 +140,6 @@ export function useAppLogic() {
     nftTokens,
     lastSoldBlock,
     totalSoldNFT,
+    blockTicker
   }
 }

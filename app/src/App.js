@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import styled from 'styled-components'
 import PropTypes from 'prop-types'
 import { useAragonApi, useApi, useGuiStyle } from '@aragon/api-react'
@@ -25,12 +25,24 @@ const App = () => {
     selectedRequest,
     nftTokens,
     lastSoldBlock,
-    totalSoldNFT
+    totalSoldNFT,
+    blockTicker,
   } = useAppLogic()
   const { appearance } = useGuiStyle()
+  const { api } = useAragonApi()
   const [screenIndex, setScreenIndex] = useState(0)
   const [selectedNFT, setSelectedNFT] = useState({})
+  const [previousBlock, setPreviousBlock] = useState(lastSoldBlock)
   const handleBack = useCallback(() => selectRequest(-1), [selectRequest])
+  useEffect(() => {
+    // Update each block to count discount NFT
+    api &&
+      api.web3Eth('getBlockNumber').subscribe((blockNumber) => {
+        blockNumber = previousBlock == blockNumber ? null : blockNumber
+        blockNumber && api.emitTrigger('IncrementTicker', { blockNumber})
+        setPreviousBlock(blockNumber)
+      })
+  }, [api])
   const handleRequest = async (
     tokenAddress,
     depositAmount,
@@ -113,6 +125,8 @@ const App = () => {
                 lastSoldBlock={lastSoldBlock}
                 totalSoldNFT={totalSoldNFT}
                 selectNFT={setSelectedNFT}
+                blockTicker={blockTicker}
+                incrementTicker={actions.incrementTicker}
               ></NFTGallery>
             ) : (
               <Requests

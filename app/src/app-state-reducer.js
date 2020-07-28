@@ -6,7 +6,7 @@ function appStateReducer(state) {
   if (!ready) {
     return { ...state, ready }
   }
-  const { requests = [], acceptedTokens = [], lastSoldBlock = 0, totalSoldNFT = 0 } = state
+  const { requests = [], acceptedTokens = [], totalSoldNFT = 0} = state
 
   return {
     ...state,
@@ -16,7 +16,6 @@ function appStateReducer(state) {
       // Sort by date descending
       compareDesc(dateLeft, dateRight)
     ),
-    lastSoldBlock,
     totalSoldNFT,
   }
 }

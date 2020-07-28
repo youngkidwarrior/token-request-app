@@ -77,9 +77,6 @@ contract TokenRequest is AragonApp {
     uint256 public nextTokenRequestId;
     mapping(uint256 => TokenRequest) public tokenRequests; // ID => TokenRequest
 
-    // uint256 public totalNFTSold;
-    // uint256 public lastSellTime;
-
     event AddTokenManager(address tokenManager);
     event SetAgentOrVault(address agentOrVault);
     event TokenAdded(address indexed token);
@@ -108,13 +105,16 @@ contract TokenRequest is AragonApp {
         uint256 depositAmount,
         uint256 requestAmount
     );
+    event GetBlockThenIncrement(
+        uint256 blockNumber
+    );
 
     modifier tokenRequestExists(uint256 _tokenRequestId) {
         require(_tokenRequestId < nextTokenRequestId, ERROR_NO_REQUEST);
         _;
     }
 
-    /**
+/**
      * @notice Initialize TokenRequest app contract
      * @param _tokenManagers TokenManager array
      * @param _agentOrVault Agent Or Vault address
@@ -252,6 +252,9 @@ contract TokenRequest is AragonApp {
         nextTokenRequestId++;
 
         bool isNFT = requestNFT(_requestToken);
+        if (isNFT) {
+            require(_requestAmount == 1, ERROR_REQUESTED_MORE_THAN_ONE_NFT);
+        }
 
         tokenRequests[tokenRequestId] = TokenRequest(
             msg.sender,
@@ -321,8 +324,8 @@ contract TokenRequest is AragonApp {
         );
     }
 
-    /**
-     * @notice Approve  `self.getTokenRequest(_tokenRequestId): address`'s request for `@tokenAmount(self.getToken(): address, self.getTokenRequest(_tokenRequestId): (address, address, uint, <uint>))` in exchange for `@tokenAmount(self.getTokenRequest(_tokenRequestId): (address, <address>), self.getTokenRequest(_tokenRequestId): (address, address, <uint>, uint))`
+   /**
+      * @notice Approve  `self.getTokenRequest(_tokenRequestId): address`'s request for `@tokenAmount(self.getToken(): address, self.getTokenRequest(_tokenRequestId): (address, address, uint, <uint>))` in exchange for `@tokenAmount(self.getTokenRequest(_tokenRequestId): (address, <address>), self.getTokenRequest(_tokenRequestId): (address, address, <uint>, uint))`
      * @dev This function's FINALISE_TOKEN_REQUEST_ROLE permission is typically given exclusively to a forwarder.
      *      This function requires the MINT_ROLE permission on the TokenManager specified.
      * @param _tokenRequestId ID of the Token Request

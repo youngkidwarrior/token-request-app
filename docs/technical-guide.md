@@ -62,11 +62,13 @@ mapping(uint256 => TokenRequest) public tokenRequests; // ID => TokenRequest
 
 ## Initialization
 
-The token request app is initialized by passing the address of a `_tokenManager` instance, the address of a `_vault` instance, and an array of addresses `_acceptedDepositTokens`. The `_acceptedDepositTokens` array must be less than the `MAX_ACCEPTED_DEPOSIT_TOKENS` variable which is set to 100.
+The token request app is initialized by passing an array of Token Manager addresses `_tokenManagers`, the address of a Agent or Vault instance `_agentOrVault`, and an array of addresses `_acceptedDepositTokens`. The `_acceptedDepositTokens` array must be less than the `MAX_ACCEPTED_DEPOSIT_TOKENS` variable which is set to 100.
 
-```
-function initialize(address _tokenManager, address _vault, address[] _acceptedDepositTokens) external onlyInit {
-		require(isContract(_tokenManager), ERROR_ADDRESS_NOT_CONTRACT);
+function initialize(address[] _tokenManagers, address _agentOrVault, address[] _acceptedDepositTokens) external onlyInit {
+		for (uint256 i = 0; i < _tokenManagers.length; i++) {
+        require(isContract(_tokenManagers[i]), ERROR_ADDRESS_NOT_CONTRACT);
+        tokenManagers[i] = TokenManager(_tokenManagers[i]);
+    }
 		// require that the amount of token contract addresses in `_acceptedDepositTokens` is less than `MAX_ACCEPTED_DEPOSIT_TOKENS`
 		require(_acceptedDepositTokens.length <= MAX_ACCEPTED_DEPOSIT_TOKENS, ERROR_TOO_MANY_ACCEPTED_TOKENS);
 
@@ -79,7 +81,6 @@ function initialize(address _tokenManager, address _vault, address[] _acceptedDe
 		}
 
 		// initialize parameters
-		tokenManager = TokenManager(_tokenManager);
 		vault = _vault;
 		acceptedDepositTokens = _acceptedDepositTokens;
 
@@ -96,21 +97,26 @@ The initialization parameters can be changed with the following functions:
 
 ```
 /**
-* @notice Set the Token Manager to `_tokenManager`.
+* @notice Add a Token Manager to `_tokenManagers`.
 * @param _tokenManager The new token manager address
 */
-function setTokenManager(address _tokenManager) external auth(SET_TOKEN_MANAGER_ROLE) {
-		tokenManager = TokenManager(_tokenManager);
-		emit SetTokenManager(_tokenManager);
-}
+function addTokenManager(address _tokenManager)
+        external
+        auth(SET_TOKEN_MANAGER_ROLE)
+    {
+        require(isContract(_tokenManager), ERROR_ADDRESS_NOT_CONTRACT);
+
+        tokenManagers.push(TokenManager(_tokenManager));
+        emit AddTokenManager(_tokenManager);
+    }
 
 /**
-* @notice Set the Vault to `_vault`.
-* @param _vault The new vault address
+* @notice Set the Agent or Vault to `_agentOrVault`.
+* @param _agentOrVault The new vault address
 */
-function setVault(address _vault) external auth(SET_VAULT_ROLE) {
-		vault = _vault;
-		emit SetVault(_vault);
+function setVault(address _agentOrVault) external auth(SET_VAULT_ROLE) {
+		agentOrVault = _agentOrVault;
+		emit SetVault(_agentOrVault);
 }
 
 /**
@@ -150,41 +156,69 @@ When a user creates a new token request they can choose the deposit token, the a
 > Note: The user can deposit an unlimited amount of tokens. A user can also request as many of the DAO's native token as they want. `MAX_ACCEPTED_DEPOSIT_TOKENS` is a parameter that controls the maximum amount of tokens the DAO can accept as deposit for requests, not the amount of tokens a user can deposit or request.
 
 ```
-/**
-* @notice Create a token request depositing `@tokenAmount(_depositToken, _depositAmount, true, 18)` in exchange for `@tokenAmount(self.getToken(): address, _requestAmount, true, 18)`
-* @param _depositToken Address of the token being deposited
-* @param _depositAmount Amount of the token being deposited
-* @param _requestAmount Amount of the token being requested
-* @param _reference String detailing request reason
+ /**
+ * @notice Create a token request depositing `@tokenAmount(_depositToken, _depositAmount, true)` in exchange for `@tokenAmount(_requestToken, _requestAmount,_requestTokenId true)`
+ * @param _depositToken Address of the token being deposited
+ * @param _depositAmount Amount of the token being deposited
+ * @param _requestToken Address of the token being requested
+ * @param _requestAmount Amount of the token being requested
+ * @param _requestTokenId ID of the token being requested (only applies to NFTs)
+ * @param _reference String detailing request reason
 */
-function createTokenRequest(address _depositToken, uint256 _depositAmount, uint256 _requestAmount, string _reference)
-external
-payable
-returns (uint256)
-{
-		// require that the deposit token is accepted by the DAO
-		require(acceptedDepositTokens.contains(_depositToken), ERROR_TOKEN_NOT_ACCEPTED);
-
-		// logic to accept ETH or an ERC-20 token
+function createTokenRequest(
+		address _depositToken,
+		uint256 _depositAmount,
+		address _requestToken,
+		uint256 _requestAmount,
+		uint256 _requestTokenId,
+		string _reference
+) external payable returns (uint256) {
+		require(
+				acceptedDepositTokens.contains(_depositToken),
+				ERROR_TOKEN_NOT_ACCEPTED
+		);
 		if (_depositToken == ETH) {
 				require(msg.value == _depositAmount, ERROR_ETH_VALUE_MISMATCH);
 		} else {
-				require(ERC20(_depositToken).safeTransferFrom(msg.sender, address(this), _depositAmount), ERROR_TOKEN_TRANSFER_REVERTED);
+				require(
+						ERC20(_depositToken).safeTransferFrom(
+								msg.sender,
+								address(this),
+								_depositAmount
+						),
+						ERROR_TOKEN_TRANSFER_REVERTED
+				);
 		}
 
-		// create a new TokenRequest and add it to the tokenRequests array
 		uint256 tokenRequestId = nextTokenRequestId;
 		nextTokenRequestId++;
 
-		tokenRequests[tokenRequestId] = TokenRequest(msg.sender, _depositToken, _depositAmount, _requestAmount, Status.Pending);
+		bool isNFT = requestNFT(_requestToken);
 
-		// emit an event
-		emit TokenRequestCreated(tokenRequestId, msg.sender, _depositToken, _depositAmount, _requestAmount, _reference);
+		tokenRequests[tokenRequestId] = TokenRequest(
+				msg.sender,
+				_depositToken,
+				_depositAmount,
+				_requestToken,
+				_requestAmount,
+				_requestTokenId,
+				isNFT,
+				Status.Pending
+		);
 
-		// return the tokenRequestId
+		emit TokenRequestCreated(
+				tokenRequestId,
+				msg.sender,
+				_depositToken,
+				_depositAmount,
+				_requestToken,
+				_requestAmount,
+				_requestTokenId,
+				_reference
+		);
+
 		return tokenRequestId;
 }
-```
 
 <br />
 
@@ -228,13 +262,13 @@ function refundTokenRequest(uint256 _tokenRequestId) external nonReentrant token
 To accept a token request `finalizeTokenRequest()` needs to be called by passing in the `tokenRequestId` of the token request to finalize. This moves the token deposit to the DAO's vault, and transfers the requested amount of the DAO's tokens to the token requester.
 
 ```
+
 /**
-* @notice Finalise the token request with id `_tokenRequestId`, minting the requester funds and moving payment
-					to the vault.
-* @dev This function's FINALISE_TOKEN_REQUEST_ROLE permission is typically given exclusively to a forwarder.
-*      This function requires the MINT_ROLE permission on the TokenManager specified.
-* @param _tokenRequestId ID of the Token Request
-*/
+	* @notice Approve  `self.getTokenRequest(_tokenRequestId): address`'s request for `@tokenAmount(self.getToken(): address, self.getTokenRequest(_tokenRequestId): (address, address, uint, <uint>))` in exchange for `@tokenAmount(self.getTokenRequest(_tokenRequestId): (address, <address>), self.getTokenRequest(_tokenRequestId): (address, address, <uint>, uint))`
+	* @dev This function's FINALISE_TOKEN_REQUEST_ROLE permission is typically given exclusively to a forwarder.
+	*      This function requires the MINT_ROLE permission on the TokenManager specified.
+	* @param _tokenRequestId ID of the Token Request
+	*/
 function finaliseTokenRequest(uint256 _tokenRequestId)
 		external
 		nonReentrant
@@ -244,31 +278,48 @@ function finaliseTokenRequest(uint256 _tokenRequestId)
 		TokenRequest storage tokenRequest = tokenRequests[_tokenRequestId];
 		require(tokenRequest.status == Status.Pending, ERROR_NOT_PENDING);
 
-		// set request as finalized
 		tokenRequest.status = Status.Finalised;
 
-		// initialize parameters from the token request
 		address requesterAddress = tokenRequest.requesterAddress;
+		address requestToken = tokenRequest.requestToken;
 		address depositToken = tokenRequest.depositToken;
 		uint256 depositAmount = tokenRequest.depositAmount;
 		uint256 requestAmount = tokenRequest.requestAmount;
+		uint256 tokenId = tokenRequest.tokenId;
+		bool isNFT = tokenRequest.isNFT;
 
-		// logic to handle depositing the ETH or ERC-20 tokens into the DAO's vault
 		if (depositAmount > 0) {
-
 				if (depositToken == ETH) {
-						(bool success, ) = vault.call.value(depositAmount)();
+						(bool success, ) = agentOrVault.call.value(depositAmount)();
 						require(success, ERROR_ETH_TRANSFER_FAILED);
 				} else {
-						require(ERC20(depositToken).safeTransfer(vault, depositAmount), ERROR_TOKEN_TRANSFER_REVERTED);
+						require(
+								ERC20(depositToken).safeTransfer(agentOrVault, depositAmount),
+								ERROR_TOKEN_TRANSFER_REVERTED
+						);
 				}
 		}
 
-		// mint the requested amount of the DAO's native tokens for the token requestee
-		tokenManager.mint(requesterAddress, requestAmount);
+		if (isNFT) {
+				ERC721Full(requestToken).safeTransferFrom(agentOrVault,requesterAddress,tokenId);
+		} else {
+				TokenManager tokenManager;
+				for (uint256 i = 0; i < tokenManagers.length; i++) {
+						if (requestToken == address(tokenManagers[i].token)) {
+								tokenManager = tokenManagers[i];
+						}
+				}
+				tokenManager.mint(requesterAddress, requestAmount);
+		}
 
-		// emit an event that the token request is finalized
-		emit TokenRequestFinalised(_tokenRequestId, requesterAddress, depositToken, depositAmount, requestAmount);
+		emit TokenRequestFinalised(
+				_tokenRequestId,
+				requesterAddress,
+				requestToken,
+				depositToken,
+				depositAmount,
+				requestAmount
+		);
 }
 ```
 
@@ -283,27 +334,39 @@ function getAcceptedDepositTokens() public view returns (address[]) {
 		return acceptedDepositTokens;
 }
 
-function getTokenRequest(uint256 _tokenRequestId) public view
-returns (
-		address requesterAddress,
-		address depositToken,
-		uint256 depositAmount,
-		uint256 requestAmount
-)
+function getTokenManagers() public view returns (TokenManager[]) {
+		return tokenManagers;
+}
+
+function getTokenRequest(uint256 _tokenRequestId)
+		public
+		view
+		returns (
+				address requesterAddress,
+				address requestToken,
+				address depositToken,
+				uint256 depositAmount,
+				uint256 requestAmount
+		)
 {
 		TokenRequest storage tokenRequest = tokenRequests[_tokenRequestId];
 
 		requesterAddress = tokenRequest.requesterAddress;
+		requestToken = tokenRequest.requestToken;
 		depositToken = tokenRequest.depositToken;
 		depositAmount = tokenRequest.depositAmount;
 		requestAmount = tokenRequest.requestAmount;
 }
 
 /**
-* @dev convenience function for getting the token request token in a radspec string
-*/
-function getToken() internal returns (address) {
-		return tokenManager.token();
+	* @dev Convenience function for getting the token request token in a radspec string
+	*/
+function getTokens() public returns (address[]) {
+		address[] memory tokens;
+		for (uint256 i = 0; i < tokenManagers.length; i++) {
+				tokens[i] = tokenManagers[i].token();
+		}
+		return tokens;
 }
 ```
 

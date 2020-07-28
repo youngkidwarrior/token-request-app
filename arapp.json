@@ -1,6 +1,6 @@
 {
   "path": "contracts/TokenRequest.sol",
-  "appName": "token-request.aragonpm.eth",
+  "appName": "nft-request.open.aragonpm.eth",
   "roles": [
     {
       "name": "Set Token Manager",
