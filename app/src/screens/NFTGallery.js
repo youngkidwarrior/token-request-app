@@ -1,62 +1,59 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react'
 import {
   Box,
   Tag,
   Text,
   Card,
   CardLayout,
-  Button,
   TokenBadge,
   useTheme,
   GU,
   Split,
+  Button,
   DropDown,
   ContextMenu,
   ContextMenuItem,
   LoadingRing,
-} from '@aragon/ui';
-import { evaluateNFTPrice } from '../lib/token-utils';
-import { useApi, useNetwork, useAppState } from '@aragon/api-react';
-import erc721Logo from '../assets/721_cover.gif';
-const BASE_NFT_VALUE = 1;
-const DEPRECIATE_BLOCK_INTERVAL = 10000;
+} from '@aragon/ui'
+import { useApi, useNetwork, useAppState } from '@aragon/api-react'
+import { evaluateNFTPrice } from '../lib/token-utils'
+import erc721Logo from '../assets/721_cover.gif'
+const BASE_NFT_VALUE = 1
+const DEPRECIATE_BLOCK_INTERVAL = 10000
 
 const NFTGallery = React.memo(
-  ({
-    nftTokens,
-    lastSoldBlock,
-    totalSoldNFT,
-    selectNFT,
-    openPanel,
-    blockTicker,
-  }) => {
-    const [nextPriceDepreciation, setNextPriceDepreciation] = useState(0);
-    const [nftPrice, setNFTPrice] = useState(BASE_NFT_VALUE);
-    const api = useApi();
-    const network = useNetwork();
-    const theme = useTheme();
+  ({ nftTokens, totalSoldNFT, selectNFT, openPanel, auctionStatus, toggleAuction, lastSoldBlock }) => {
+    const [nextPriceDepreciation, setNextPriceDepreciation] = useState(0)
+    const [nftPrice, setNFTPrice] = useState(BASE_NFT_VALUE)
+    const api = useApi()
+    const network = useNetwork()
+    const theme = useTheme()
 
     useEffect(() => {
-      const [evaluatedPrice, timeDepreciation] = evaluateNFTPrice(
-        BASE_NFT_VALUE,
-        blockTicker,
-        lastSoldBlock,
-        totalSoldNFT,
-        DEPRECIATE_BLOCK_INTERVAL
-      );
-      evaluatedPrice ? setNFTPrice(evaluatedPrice) : null;
-      const blocksTillNextDepreciation =
-        DEPRECIATE_BLOCK_INTERVAL - blockTicker;
-      setNextPriceDepreciation(blocksTillNextDepreciation);
-    }, [api, blockTicker, totalSoldNFT]);
+      api.web3Eth('getBlockNumber').subscribe((blockNumber) => {
+        if (auctionStatus) {
+          const [evaluatedPrice, timeDepreciation] = evaluateNFTPrice(
+            BASE_NFT_VALUE,
+            blockNumber,
+            lastSoldBlock,
+            totalSoldNFT,
+            DEPRECIATE_BLOCK_INTERVAL
+          )
+          evaluatedPrice ? setNFTPrice(evaluatedPrice) : null
+          const blocksTillNextDepreciation =
+            DEPRECIATE_BLOCK_INTERVAL - ((blockNumber - lastSoldBlock) % DEPRECIATE_BLOCK_INTERVAL)
+          setNextPriceDepreciation(blocksTillNextDepreciation)
+        }
+      })
+    }, [auctionStatus])
 
     function handleSelectNFT(token) {
-      selectNFT(token);
-      openPanel();
+      selectNFT(token)
+      openPanel()
     }
 
     function checkURLForImage(imageURL) {
-      return imageURL.match(/\.(jpg|gif|png|jpeg)$/) != null;
+      return imageURL.match(/\.(jpg|gif|png|jpeg)$/) != null
     }
 
     return (
@@ -99,9 +96,7 @@ const NFTGallery = React.memo(
                         right: 0.5rem;
                       `}
                     >
-                      {token.symbol && (
-                        <Tag mode="identifier">{token.symbol}</Tag>
-                      )}
+                      {token.symbol && <Tag mode="identifier">{token.symbol}</Tag>}
                     </div>
 
                     <img
@@ -127,10 +122,7 @@ const NFTGallery = React.memo(
                           `}
                           onClick={(e) => e.stopPropagation()}
                         >
-                          <ContextMenuItem
-                            href={'http://etherscan.io/token/' + token.address}
-                            key={1}
-                          >
+                          <ContextMenuItem href={'http://etherscan.io/token/' + token.address} key={1}>
                             <span
                               css={`
                                 margin-left: ${1 * GU}px;
@@ -146,11 +138,7 @@ const NFTGallery = React.memo(
                           `}
                           onClick={(e) => e.stopPropagation()}
                         >
-                          <ContextMenuItem
-                            onClick={(e) => e.stopPropagation()}
-                            href={token.uri}
-                            key={2}
-                          >
+                          <ContextMenuItem onClick={(e) => e.stopPropagation()} href={token.uri} key={2}>
                             <span
                               css={`
                                 margin-left: ${1 * GU}px;
@@ -173,7 +161,7 @@ const NFTGallery = React.memo(
           }
           secondary={
             <>
-              <Box heading="Price">
+              <Box heading="Auction">
                 <ul>
                   <li
                     css={`
@@ -183,24 +171,33 @@ const NFTGallery = React.memo(
                     `}
                   >
                     <span>Current Price</span>
-                    {nftPrice ? (
-                      <span> {nftPrice + ' ETH'} </span>
-                    ) : (
-                      <LoadingRing />
-                    )}
+                    {nftPrice ? <span> {nftPrice + ' ETH'} </span> : <LoadingRing />}
                   </li>
                   <li
                     css={`
                       display: flex;
                       justify-content: space-between;
                       list-style: none;
-                      & + & {
-                        margin-top: ${2 * GU}px;
-                      }
+                      margin-top: ${2 * GU}px;
                     `}
                   >
                     <span>Blocks Till Discount</span>
-                    <span>{nftTokens ? nextPriceDepreciation : 'N/A'}</span>
+                    <span>{auctionStatus ? nextPriceDepreciation : 'N/A'}</span>
+                  </li>
+                  <li
+                    css={`
+                      display: flex;
+                      justify-content: center;
+                      list-style: none;
+                      margin-top: ${2 * GU}px;
+                    `}
+                  >
+                    <Button
+                      mode="strong"
+                      label={auctionStatus ? 'Stop Auction' : 'Start Auction'}
+                      display={'label'}
+                      onClick={toggleAuction}
+                    />
                   </li>
                 </ul>
               </Box>
@@ -253,8 +250,8 @@ const NFTGallery = React.memo(
           }
         />
       </>
-    );
+    )
   }
-);
+)
 
-export default NFTGallery;
+export default NFTGallery

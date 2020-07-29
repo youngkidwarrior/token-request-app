@@ -6,7 +6,27 @@ function appStateReducer(state) {
   if (!ready) {
     return { ...state, ready }
   }
-  const { requests = [], acceptedTokens = [], totalSoldNFT = 0} = state
+  const {
+    requests = [],
+    acceptedTokens = [],
+    nftTokens = [
+      {
+        address: '0x29D7d1dd5B6f9C864d9db560D72a247c178aE86B',
+        tokenId: 0,
+        symbol: 'DUM',
+        name: 'DO NOT SEND 1',
+        uri: 'https://i.imgur.com/0MkDli1.jpeg',
+      },
+      {
+        address: '0x29D7d1dd5B6f9C864d9db560D72a247c178aE86B',
+        tokenId: 1,
+        symbol: 'DUM2',
+        name: 'DO NOT SEND 2',
+        uri: '',
+      },
+    ],
+    auctionStatus = false
+  } = state
 
   return {
     ...state,
@@ -16,7 +36,8 @@ function appStateReducer(state) {
       // Sort by date descending
       compareDesc(dateLeft, dateRight)
     ),
-    totalSoldNFT,
+    nftTokens,
+    auctionStatus
   }
 }
 

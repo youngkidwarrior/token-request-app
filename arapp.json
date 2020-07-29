@@ -21,6 +21,11 @@
       "name": "Add/Remove a token from the accepted tokens",
       "id": "MODIFY_TOKENS_ROLE",
       "params": []
+    },
+    {
+      "name": "Toggle auction",
+      "id": "TOGGLE_AUCTION_ROLE",
+      "params": []
     }
   ],
   "environments": {

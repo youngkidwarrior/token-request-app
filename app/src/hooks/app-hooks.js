@@ -106,6 +106,23 @@ export function useWithdrawAction(onDone) {
   )
 }
 
+export function useToggleAuctionAction(onDone) {
+  const { api } = useAragonApi()
+
+  return useCallback(
+    () => {
+      try {
+        api.toggleAuction().toPromise()
+
+        onDone()
+      } catch (error) {
+        console.error(error)
+      }
+    },
+    [api, onDone]
+  )
+}
+
 export function useAppLogic() {
   const {
     account,
@@ -117,7 +134,7 @@ export function useAppLogic() {
     nftTokens,
     lastSoldBlock,
     totalSoldNFT,
-    blockTicker,
+    auctionStatus,
   } = useAppState()
   const [selectedRequest, selectRequest] = useSelectedRequest(requests)
   const panelState = useSidePanel()
@@ -125,6 +142,7 @@ export function useAppLogic() {
     request: useRequestAction(panelState.requestClose),
     submit: useSubmitAction(panelState.requestClose),
     withdraw: useWithdrawAction(panelState.requestClose),
+    toggleAuction: useToggleAuctionAction(panelState.requestClose)
   }
 
   return {
@@ -140,6 +158,6 @@ export function useAppLogic() {
     nftTokens,
     lastSoldBlock,
     totalSoldNFT,
-    blockTicker
+    auctionStatus
   }
 }

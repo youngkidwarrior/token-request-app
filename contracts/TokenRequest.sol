@@ -31,6 +31,10 @@ contract TokenRequest is AragonApp {
         "MODIFY_TOKENS_ROLE"
     );
 
+    bytes32 public constant TOGGLE_AUCTION_ROLE = keccak256(
+        "TOGGLE_AUCTION_ROLE"
+    );
+
     string
         private constant ERROR_TOO_MANY_ACCEPTED_TOKENS = "TOKEN_REQUEST_TOO_MANY_ACCEPTED_TOKENS";
     string
@@ -75,6 +79,13 @@ contract TokenRequest is AragonApp {
     address[] public acceptedDepositTokens;
 
     uint256 public nextTokenRequestId;
+
+    uint256 public lastSoldBlock;
+
+    uint256 public totalSoldNFT;
+
+    bool public auctionStatus;
+
     mapping(uint256 => TokenRequest) public tokenRequests; // ID => TokenRequest
 
     event AddTokenManager(address tokenManager);
@@ -105,16 +116,21 @@ contract TokenRequest is AragonApp {
         uint256 depositAmount,
         uint256 requestAmount
     );
-    event GetBlockThenIncrement(
-        uint256 blockNumber
+    event NFTSold(
+        address requestToken,
+        uint256 tokenId,
+        uint256 totalSoldNFT,
+        uint256 lastSoldBlock
     );
+
+    event AuctionToggle(bool auctionStatus, uint256 lastSoldBlock);
 
     modifier tokenRequestExists(uint256 _tokenRequestId) {
         require(_tokenRequestId < nextTokenRequestId, ERROR_NO_REQUEST);
         _;
     }
 
-/**
+    /**
      * @notice Initialize TokenRequest app contract
      * @param _tokenManagers TokenManager array
      * @param _agentOrVault Agent Or Vault address
@@ -151,6 +167,9 @@ contract TokenRequest is AragonApp {
         tokenManagers = _tokenManagers;
         agentOrVault = _agentOrVault;
         acceptedDepositTokens = _acceptedDepositTokens;
+        lastSoldBlock = block.number;
+        totalSoldNFT = 0;
+        auctionStatus = false;
 
         initialized();
     }
@@ -173,7 +192,10 @@ contract TokenRequest is AragonApp {
      * @notice Set the Agent or Vault to `_agentOrVault`.
      * @param _agentOrVault The new vault address
      */
-    function setAgentOrVault(address _agentOrVault) external auth(SET_VAULT_ROLE) {
+    function setAgentOrVault(address _agentOrVault)
+        external
+        auth(SET_VAULT_ROLE)
+    {
         agentOrVault = _agentOrVault;
         emit SetAgentOrVault(_agentOrVault);
     }
@@ -324,8 +346,8 @@ contract TokenRequest is AragonApp {
         );
     }
 
-   /**
-      * @notice Approve  `self.getTokenRequest(_tokenRequestId): address`'s request for `@tokenAmount(self.getToken(): address, self.getTokenRequest(_tokenRequestId): (address, address, uint, <uint>))` in exchange for `@tokenAmount(self.getTokenRequest(_tokenRequestId): (address, <address>), self.getTokenRequest(_tokenRequestId): (address, address, <uint>, uint))`
+    /**
+     * @notice Approve  `self.getTokenRequest(_tokenRequestId): address`'s request for `@tokenAmount(self.getToken(): address, self.getTokenRequest(_tokenRequestId): (address, address, uint, <uint>))` in exchange for `@tokenAmount(self.getTokenRequest(_tokenRequestId): (address, <address>), self.getTokenRequest(_tokenRequestId): (address, address, <uint>, uint))`
      * @dev This function's FINALISE_TOKEN_REQUEST_ROLE permission is typically given exclusively to a forwarder.
      *      This function requires the MINT_ROLE permission on the TokenManager specified.
      * @param _tokenRequestId ID of the Token Request
@@ -355,14 +377,24 @@ contract TokenRequest is AragonApp {
                 require(success, ERROR_ETH_TRANSFER_FAILED);
             } else {
                 require(
-                    ERC20(depositToken).safeTransfer(agentOrVault, depositAmount),
+                    ERC20(depositToken).safeTransfer(
+                        agentOrVault,
+                        depositAmount
+                    ),
                     ERROR_TOKEN_TRANSFER_REVERTED
                 );
             }
         }
 
         if (isNFT) {
-            ERC721Full(requestToken).safeTransferFrom(agentOrVault,requesterAddress,tokenId);
+            ERC721Full(requestToken).safeTransferFrom(
+                agentOrVault,
+                requesterAddress,
+                tokenId
+            );
+            totalSoldNFT++;
+            lastSoldBlock = now;
+            emit NFTSold(requestToken, tokenId, totalSoldNFT, lastSoldBlock);
         } else {
             TokenManager tokenManager;
             for (uint256 i = 0; i < tokenManagers.length; i++) {
@@ -383,11 +415,23 @@ contract TokenRequest is AragonApp {
         );
     }
 
-    function requestNFT(address _tokenAddress) public view returns (bool isNFT) {
+    function toggleAuction() external auth(TOGGLE_AUCTION_ROLE) {
+        auctionStatus = !auctionStatus;
+        if (auctionStatus) {
+            lastSoldBlock = block.number;
+        }
+        emit AuctionToggle(auctionStatus, lastSoldBlock);
+    }
+
+    function requestNFT(address _tokenAddress)
+        public
+        view
+        returns (bool isNFT)
+    {
         return ERC721Full(_tokenAddress).supportsInterface(0x80ac58cd);
     }
 
-       /**
+    /**
      * @dev Calculates NFT value after time depreciation
      */
     // function evaluateNFTValue() internal view returns (uint256){

@@ -26,7 +26,7 @@ const App = () => {
     nftTokens,
     lastSoldBlock,
     totalSoldNFT,
-    blockTicker,
+    auctionStatus,
   } = useAppLogic()
   const { appearance } = useGuiStyle()
   const { api } = useAragonApi()
@@ -34,16 +34,6 @@ const App = () => {
   const [selectedNFT, setSelectedNFT] = useState({})
   const [previousBlock, setPreviousBlock] = useState(lastSoldBlock)
   const handleBack = useCallback(() => selectRequest(-1), [selectRequest])
-
-  useEffect(() => {
-    // Update each block to count discount NFT
-    api &&
-      api.web3Eth('getBlockNumber').subscribe((blockNumber) => {
-        blockNumber = previousBlock == blockNumber ? null : blockNumber
-        blockNumber && api.emitTrigger('IncrementTicker', { blockNumber})
-        setPreviousBlock(blockNumber)
-      })
-  }, [api,previousBlock,blockTicker])
 
   const handleRequest = async (
     tokenAddress,
@@ -127,8 +117,8 @@ const App = () => {
                 lastSoldBlock={lastSoldBlock}
                 totalSoldNFT={totalSoldNFT}
                 selectNFT={setSelectedNFT}
-                blockTicker={blockTicker}
-                incrementTicker={actions.incrementTicker}
+                auctionStatus={auctionStatus}
+                toggleAuction={actions.toggleAuction}
               ></NFTGallery>
             ) : (
               <Requests
