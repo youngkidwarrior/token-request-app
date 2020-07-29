@@ -55,6 +55,10 @@ const NFTGallery = React.memo(
       openPanel();
     }
 
+    function checkURLForImage(imageURL) {
+      return imageURL.match(/\.(jpg|gif|png|jpeg)$/) != null;
+    }
+
     return (
       <>
         <Split
@@ -105,7 +109,7 @@ const NFTGallery = React.memo(
                         max-width: 100%;
                         max-height: 100%;
                       `}
-                      src={erc721Logo}
+                      src={checkURLForImage(token.uri) ? token.uri : erc721Logo}
                     />
                     <div
                       css={`

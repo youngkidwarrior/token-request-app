@@ -158,7 +158,7 @@ function initializeState(tokenManagerContracts, tokens, settings) {
             tokenId: 1,
             symbol: 'DUM2',
             name: 'DO NOT SEND 2',
-            uri: 'https://i.imgur.com/0MkDli1.jpeg',
+            uri: '',
           },
         ],
         lastSoldBlock,
