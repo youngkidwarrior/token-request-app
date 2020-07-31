@@ -101,7 +101,7 @@ export const evaluateNFTPrice = (baseNFTValue, blockNumber, lastSoldBlock, total
   const maxValue = baseNFTValue * 2 ** totalSoldNFT
   let timeDepreciation = 0
   if (!blockNumber !== lastSoldBlock) {
-    timeDepreciation = (maxValue * 0.01 * (blockNumber - lastSoldBlock)) % blockInterval
+    timeDepreciation = (maxValue * 0.01 * Math.floor((blockNumber - lastSoldBlock) / blockInterval))
   }
   let evaluatedPrice = maxValue - timeDepreciation
   if (evaluatedPrice < 0.001) {

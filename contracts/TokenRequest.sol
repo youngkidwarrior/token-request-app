@@ -8,6 +8,7 @@ import "@aragon/apps-token-manager/contracts/TokenManager.sol";
 import "./openzeppelin/ERC721Full.sol";
 import "./lib/UintArrayLib.sol";
 import "./lib/AddressArrayLib.sol";
+import "openzeppelin-solidity/contracts/introspection/ERC165Checker.sol";
 
 /**
  * The expected use of this app requires the FINALISE_TOKEN_REQUEST_ROLE permission be given exclusively to a forwarder.
@@ -19,6 +20,7 @@ contract TokenRequest is AragonApp {
     using SafeERC20 for ERC20;
     using UintArrayLib for uint256[];
     using AddressArrayLib for address[];
+    using ERC165Checker for address;
 
     bytes32 public constant SET_TOKEN_MANAGER_ROLE = keccak256(
         "SET_TOKEN_MANAGER_ROLE"
@@ -62,6 +64,8 @@ contract TokenRequest is AragonApp {
 
     enum Status {Pending, Refunded, Finalised}
 
+    enum Request {RequestNFT, DepositNFT, Default}
+
     struct TokenRequest {
         address requesterAddress;
         address depositToken;
@@ -69,7 +73,7 @@ contract TokenRequest is AragonApp {
         address requestToken;
         uint256 requestAmount;
         uint256 tokenId;
-        bool isNFT;
+        Request isNFT;
         Status status;
     }
 
@@ -272,10 +276,19 @@ contract TokenRequest is AragonApp {
 
         uint256 tokenRequestId = nextTokenRequestId;
         nextTokenRequestId++;
+        Request isNFT;
+        if (requestNFT(_requestToken)) {
+            isNFT = Request.RequestNFT;
+        } else if (requestNFT(_depositToken)) {
+            isNFT = Request.DepositNFT;
+        } else {
+            isNFT = Request.Default;
+        }
 
-        bool isNFT = requestNFT(_requestToken);
-        if (isNFT) {
+        if (isNFT == Request.RequestNFT) {
             require(_requestAmount == 1, ERROR_REQUESTED_MORE_THAN_ONE_NFT);
+        } else if (isNFT == Request.DepositNFT) {
+            require(_depositAmount == 1, ERROR_REQUESTED_MORE_THAN_ONE_NFT);
         }
 
         tokenRequests[tokenRequestId] = TokenRequest(
@@ -369,7 +382,7 @@ contract TokenRequest is AragonApp {
         uint256 depositAmount = tokenRequest.depositAmount;
         uint256 requestAmount = tokenRequest.requestAmount;
         uint256 tokenId = tokenRequest.tokenId;
-        bool isNFT = tokenRequest.isNFT;
+        Request isNFT = tokenRequest.isNFT;
 
         if (depositAmount > 0) {
             if (depositToken == ETH) {
@@ -386,8 +399,8 @@ contract TokenRequest is AragonApp {
             }
         }
 
-        if (isNFT) {
-            ERC721Full(requestToken).safeTransferFrom(
+        if (isNFT == Request.RequestNFT) {
+            ERC721(requestToken).safeTransferFrom(
                 agentOrVault,
                 requesterAddress,
                 tokenId
@@ -395,6 +408,12 @@ contract TokenRequest is AragonApp {
             totalSoldNFT++;
             lastSoldBlock = now;
             emit NFTSold(requestToken, tokenId, totalSoldNFT, lastSoldBlock);
+        } else if (isNFT == Request.DepositNFT) {
+            ERC721(requestToken).safeTransferFrom(
+                requesterAddress,
+                agentOrVault,
+                tokenId
+            );
         } else {
             TokenManager tokenManager;
             for (uint256 i = 0; i < tokenManagers.length; i++) {
@@ -422,23 +441,6 @@ contract TokenRequest is AragonApp {
         }
         emit AuctionToggle(auctionStatus, lastSoldBlock);
     }
-
-    function requestNFT(address _tokenAddress)
-        public
-        view
-        returns (bool isNFT)
-    {
-        return ERC721Full(_tokenAddress).supportsInterface(0x80ac58cd);
-    }
-
-    /**
-     * @dev Calculates NFT value after time depreciation
-     */
-    // function evaluateNFTValue() internal view returns (uint256){
-    //     uint256 maxValue = BASE_NFT_VALUE * (2 ** totalNFTSold);
-    //     uint256 timeDepreciation = (maxValue/100) * (now - lastSellTime);
-    //     return maxValue - timeDepreciation;
-    // }
 
     function getAcceptedDepositTokens() public view returns (address[]) {
         return acceptedDepositTokens;
@@ -485,5 +487,9 @@ contract TokenRequest is AragonApp {
      */
     function allowRecoverability(address token) public view returns (bool) {
         return false;
+    }
+
+    function requestNFT(address _tokenAddress) internal returns (bool) {
+        return _tokenAddress._supportsInterface(0x80ac58cd);
     }
 }

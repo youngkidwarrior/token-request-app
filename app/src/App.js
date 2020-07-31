@@ -97,6 +97,7 @@ const App = () => {
           <RequestDetail
             request={selectedRequest}
             tokens={orgTokens}
+            nftTokens={nftTokens}
             onBack={handleBack}
             onSubmit={handleSubmit}
             onWithdraw={handleWithdraw}
@@ -146,6 +147,7 @@ const App = () => {
           onRequest={handleRequest}
           selectNFT={setSelectedNFT}
           selectedNFT={selectedNFT}
+          auctionStatus={auctionStatus}
         ></NewRequest>
       </SidePanel>
     </Main>

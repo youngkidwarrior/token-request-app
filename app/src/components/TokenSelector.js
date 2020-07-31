@@ -73,7 +73,7 @@ class TokenSelector extends React.Component {
   getTokenIdFromTokens(index) {
     // Only erc721 has tokenId
     const token = this.props.tokens[index] 
-    return token.tokenId ? token.tokenId : null
+    return typeof token.tokenId =="number" ? token.tokenId : null
   }
 
   getItems() {

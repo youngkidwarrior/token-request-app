@@ -10,7 +10,7 @@ import { addressesEqual } from '../lib/web3-utils'
 
 const PAGINATION = 10
 
-const RequestTable = React.memo(({ requests, tokens, onSubmit, onWithdraw, ownRequests, onSelectRequest }) => {
+const RequestTable = React.memo(({ requests, onSubmit, onWithdraw, ownRequests, onSelectRequest }) => {
   const connectedAccount = useConnectedAccount()
   const theme = useTheme()
 
@@ -68,6 +68,7 @@ const RequestTable = React.memo(({ requests, tokens, onSubmit, onWithdraw, ownRe
     requestedSymbol,
     requestedDecimals
   ) => {
+    console.log(requestedSymbol);
     const timeColumn = [<time key={requestId}>{format(date, 'dd/MM/yy')}</time>]
     const commonColumns = [
       <Text>{`${formatTokenAmountSymbol(depositSymbol, depositAmount, depositDecimals)} `}</Text>,

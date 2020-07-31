@@ -18,8 +18,7 @@ import {
 import { useApi, useNetwork, useAppState } from '@aragon/api-react'
 import { evaluateNFTPrice } from '../lib/token-utils'
 import erc721Logo from '../assets/721_cover.gif'
-const BASE_NFT_VALUE = 1
-const DEPRECIATE_BLOCK_INTERVAL = 10000
+import { DEPRECIATE_BLOCK_INTERVAL, BASE_NFT_VALUE } from '../lib/constants'
 
 const NFTGallery = React.memo(
   ({ nftTokens, totalSoldNFT, selectNFT, openPanel, auctionStatus, toggleAuction, lastSoldBlock }) => {
